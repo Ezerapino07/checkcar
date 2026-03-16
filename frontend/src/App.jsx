@@ -1,305 +1,175 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
-import { auth as authApi, saveAuth, clearAuth, getStoredAuth } from './api';
+import React, { useState, useEffect, useCallback, useMemo, useRef, createContext, useContext } from 'react';
+import { auth as authApi, vehicles as vehiclesApi, clients as clientsApi, sales as salesApi, activity as activityApi, saveAuth, clearAuth, getStoredAuth } from './api';
 
-// ============================================================
-// AUTH CONTEXT — Maneja login/logout global
-// ============================================================
-const AuthContext = createContext(null);
-
-export function useAuth() {
-  return useContext(AuthContext);
-}
-
+const AuthCtx = createContext(null);
+function useAuth() { return useContext(AuthCtx); }
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
-    // Intentar recuperar sesión guardada
     const stored = getStoredAuth();
-    if (stored) {
-      setUser(stored.user);
-      setTenant(stored.tenant);
-      // Verificar token con el backend
-      authApi.me().then(data => {
-        setUser(data.user);
-        setTenant(data.tenant);
-      }).catch(() => {
-        clearAuth();
-        setUser(null);
-        setTenant(null);
-      }).finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    if (stored) { setUser(stored.user); setTenant(stored.tenant); authApi.me().then(d => { setUser(d.user); setTenant(d.tenant); }).catch(() => { clearAuth(); setUser(null); setTenant(null); }).finally(() => setLoading(false)); }
+    else setLoading(false);
   }, []);
-
-  const login = async (email, password) => {
-    const data = await authApi.login(email, password);
-    saveAuth(data);
-    setUser(data.user);
-    setTenant(data.tenant);
-    return data;
-  };
-
-  const register = async (formData) => {
-    const data = await authApi.register(formData);
-    saveAuth(data);
-    setUser(data.user);
-    setTenant(data.tenant);
-    return data;
-  };
-
-  const logout = () => {
-    clearAuth();
-    setUser(null);
-    setTenant(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, tenant, login, register, logout, loading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const login = async (email, password) => { const d = await authApi.login(email, password); saveAuth(d); setUser(d.user); setTenant(d.tenant); };
+  const register = async (formData) => { const d = await authApi.register(formData); saveAuth(d); setUser(d.user); setTenant(d.tenant); };
+  const logout = () => { clearAuth(); setUser(null); setTenant(null); };
+  return <AuthCtx.Provider value={{ user, tenant, login, register, logout, loading }}>{children}</AuthCtx.Provider>;
 }
 
-// ============================================================
-// PAGES (importadas lazy para mantener este archivo limpio)
-// En un proyecto real, cada una va en su propio archivo
-// Acá van inline para que el ejemplo sea completo
-// ============================================================
+function fmt$(n){if(!n&&n!==0)return"-";return new Intl.NumberFormat("es-AR",{style:"currency",currency:"ARS",maximumFractionDigits:0}).format(n);}
+function fmtD(d){if(!d)return"-";const s=String(d).slice(0,10).split("-");return s.length===3?`${s[2]}/${s[1]}/${s[0]}`:d;}
+function td(){return new Date().toISOString().slice(0,10);}
+function dDiff(a,b){if(!a||!b)return null;return Math.round((new Date(b)-new Date(a))/864e5);}
+function cProfit(v){const c=+(v.precio_compra)||0,s=+(v.precio_venta)||0,g=+(v.total_gastos)||0;const p=s-c-g;return{profit:p,pct:c+g>0?p/(c+g)*100:0,tg:g};}
+function sColor(s){return{"Disponible":"#0284c7","Reservado":"#f59e0b","Vendido":"#16a34a","En preparación":"#8b5cf6"}[s]||"#6b7280";}
 
-// Tu frontend existente (concesionario.jsx) se conecta via api.js
-// Las pages importan las funciones de api.js en vez de usar state local
+const TRANS=["Manual","Automática","CVT","Secuencial"],COND=["0km","Usado"],EST_V=["Disponible","Reservado","Vendido","En preparación"],PROC=["Compra directa","Tomado en parte de pago","Consignación"],UBIC=["Salón principal","Depósito","Sucursal 1","Sucursal 2","Sucursal 3"],EST_C=["Excelente","Muy Bueno","Bueno","Regular","Malo"];
 
-function LoginPage() {
-  const { login, register } = useAuth();
-  const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ email: '', password: '', nombre: '', concesionario: '' });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+const Ic={Car:()=><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M5 17h14M5 17a2 2 0 01-2-2v-3a1 1 0 011-1h1l2-4h10l2 4h1a1 1 0 011 1v3a2 2 0 01-2 2M5 17a2 2 0 002 2h1a2 2 0 002-2M14 17a2 2 0 002 2h1a2 2 0 002-2" strokeLinecap="round" strokeLinejoin="round"/></svg>,Chart:()=><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 3v18h18M7 16l4-4 4 4 5-6" strokeLinecap="round" strokeLinejoin="round"/></svg>,Users:()=><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M15 19c0-2.21-2.69-4-6-4s-6 1.79-6 4m6-7a4 4 0 100-8 4 4 0 000 8zm10 7c0-1.66-1.79-3.07-4.28-3.74M15 3.29a4 4 0 010 7.42" strokeLinecap="round" strokeLinejoin="round"/></svg>,Plus:()=><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14" strokeLinecap="round"/></svg>,Trash:()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m2 0v14a2 2 0 01-2 2H8a2 2 0 01-2-2V6h12z" strokeLinecap="round" strokeLinejoin="round"/></svg>,Edit:()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round"/></svg>,Search:()=><svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/></svg>,X:()=><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round"/></svg>,Home:()=><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" strokeLinecap="round" strokeLinejoin="round"/></svg>,Dollar:()=><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 1v22m5-18H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H7" strokeLinecap="round" strokeLinejoin="round"/></svg>,Alert:()=><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01" strokeLinecap="round" strokeLinejoin="round"/></svg>,Log:()=><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" strokeLinecap="round" strokeLinejoin="round"/></svg>,Lock:()=><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4" strokeLinecap="round" strokeLinejoin="round"/></svg>,Logout:()=><svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round"/></svg>,Download:()=><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" strokeLinecap="round" strokeLinejoin="round"/></svg>,Clock:()=><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2" strokeLinecap="round" strokeLinejoin="round"/></svg>};
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+function Badge({children,color="#3b82f6"}){return <span style={{display:"inline-block",padding:"2px 9px",borderRadius:99,fontSize:10,fontWeight:600,background:color+"15",color,border:`1px solid ${color}25`}}>{children}</span>;}
+function Btn({children,variant="primary",size="md",...p}){const base={border:"none",borderRadius:8,cursor:"pointer",fontWeight:600,display:"inline-flex",alignItems:"center",gap:5,fontFamily:"inherit",lineHeight:1};const sz={sm:{padding:"5px 10px",fontSize:11},md:{padding:"9px 16px",fontSize:12},lg:{padding:"11px 22px",fontSize:13}};const vr={primary:{background:"#0284c7",color:"#fff"},secondary:{background:"#f3f4f6",color:"#374151",border:"1px solid #e5e7eb"},danger:{background:"#fef2f2",color:"#dc2626",border:"1px solid #fecaca"},ghost:{background:"transparent",color:"#6b7280"}};return <button {...p} style={{...base,...sz[size],...vr[variant],...(p.style||{})}}>{children}</button>;}
+function Card({children,style,...p}){return <div style={{background:"#fff",borderRadius:12,border:"1px solid #e5e7eb",padding:20,...style}} {...p}>{children}</div>;}
+function StatCard({label,value,icon,color="#0284c7"}){return <Card style={{display:"flex",alignItems:"center",gap:14,padding:"18px 20px"}}><div style={{width:44,height:44,borderRadius:11,display:"flex",alignItems:"center",justifyContent:"center",background:color+"12",color,flexShrink:0}}>{icon}</div><div><div style={{fontSize:20,fontWeight:700,color:"#111827"}}>{value}</div><div style={{fontSize:12,color:"#6b7280",marginTop:1}}>{label}</div></div></Card>;}
+function Inp({label,...p}){return <div style={{display:"flex",flexDirection:"column",gap:3}}>{label&&<label style={{fontSize:11,fontWeight:600,color:"#4b5563"}}>{label}</label>}<input {...p} style={{padding:"8px 11px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:13,background:"#fafbfc",outline:"none",...(p.style||{})}}/></div>;}
+function Sel({label,options,...p}){return <div style={{display:"flex",flexDirection:"column",gap:3}}>{label&&<label style={{fontSize:11,fontWeight:600,color:"#4b5563"}}>{label}</label>}<select {...p} style={{padding:"8px 11px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:13,background:"#fafbfc",outline:"none",...(p.style||{})}}>{options.map(o=><option key={typeof o==="string"?o:o.value} value={typeof o==="string"?o:o.value}>{typeof o==="string"?o:o.label}</option>)}</select></div>;}
+function Txa({label,...p}){return <div style={{display:"flex",flexDirection:"column",gap:3}}>{label&&<label style={{fontSize:11,fontWeight:600,color:"#4b5563"}}>{label}</label>}<textarea {...p} style={{padding:"8px 11px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:13,background:"#fafbfc",outline:"none",resize:"vertical",minHeight:50,...(p.style||{})}}/></div>;}
+function Modal({children,onClose,width=780}){return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:1000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"30px 16px",overflowY:"auto"}} onClick={onClose}><div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:width,maxHeight:"88vh",overflowY:"auto",padding:28,boxShadow:"0 25px 60px rgba(0,0,0,.18)"}}>{children}</div></div>;}
+function Sec({children}){return <div style={{fontSize:13,fontWeight:700,color:"#0284c7",marginTop:18,marginBottom:8,paddingBottom:5,borderBottom:"2px solid #e0f2fe"}}>{children}</div>;}
 
-  const handleSubmit = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      if (mode === 'login') {
-        await login(form.email, form.password);
-      } else {
-        if (!form.concesionario || !form.nombre) {
-          setError('Completá todos los campos');
-          return;
-        }
-        await register(form);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+function exportCSV(data,columns,filename){let csv="\uFEFF";csv+=columns.map(c=>`"${c.label}"`).join(",")+"\n";data.forEach(row=>{csv+=columns.map(c=>{let v=c.get?c.get(row):(row[c.key]||"");return `"${String(v).replace(/"/g,'""')}"`;}).join(",")+"\n";});const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));a.download=filename+".csv";a.click();}
 
-  const inputStyle = {
-    padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: 10,
-    fontSize: 14, background: '#fafbfc', color: '#1f2937', outline: 'none',
-    width: '100%', boxSizing: 'border-box',
-  };
+function VehicleForm({vehicle,onSave,onCancel}){
+  const[f,setF]=useState(vehicle||{titulo:"",marca:"",modelo:"",anio:"",motor:"",version:"",transmision:"Manual",condicion:"Usado",kilometros:"",fecha_ingreso:td(),fecha_venta:"",patente:"",chasis:"",nro_motor:"",precio_compra:"",precio_venta:"",precio_minimo:"",descripcion:"",anotaciones:"",estado:"Disponible",procedencia:"Compra directa",ubicacion:"Salón principal",estado_cubiertas:"Bueno",estado_pintura:"Bueno",estado_motor:"Bueno",estado_interior:"Bueno",fotos:[],gastos:[],historial:[]});
+  const[saving,setSaving]=useState(false);const set=(k,v)=>setF(o=>({...o,[k]:v}));
+  const go=async()=>{setSaving(true);try{await onSave(f);}catch(e){alert(e.message);}setSaving(false);};
+  return <Modal onClose={onCancel}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:700,margin:0}}>{vehicle?"Editar":"Nuevo"} vehículo</h2><button onClick={onCancel} style={{background:"none",border:"none",cursor:"pointer",color:"#9ca3af"}}><Ic.X/></button></div>
+    <Sec>Información general</Sec>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}><div style={{gridColumn:"1/3"}}><Inp label="Título" value={f.titulo} onChange={e=>set("titulo",e.target.value)}/></div><Inp label="Marca" value={f.marca} onChange={e=>set("marca",e.target.value)}/><Inp label="Modelo" value={f.modelo} onChange={e=>set("modelo",e.target.value)}/><Inp label="Año" type="number" value={f.anio} onChange={e=>set("anio",e.target.value)}/><Inp label="Versión" value={f.version} onChange={e=>set("version",e.target.value)}/><Inp label="Motor" value={f.motor} onChange={e=>set("motor",e.target.value)}/><Sel label="Transmisión" value={f.transmision} onChange={e=>set("transmision",e.target.value)} options={TRANS}/><Sel label="Condición" value={f.condicion} onChange={e=>set("condicion",e.target.value)} options={COND}/><Inp label="Km" type="number" value={f.kilometros} onChange={e=>set("kilometros",e.target.value)}/><Inp label="Patente" value={f.patente} onChange={e=>set("patente",e.target.value)}/><Inp label="N° Chasis" value={f.chasis} onChange={e=>set("chasis",e.target.value)}/><Inp label="N° Motor" value={f.nro_motor} onChange={e=>set("nro_motor",e.target.value)}/></div>
+    <Sec>Clasificación</Sec>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}><Sel label="Estado" value={f.estado} onChange={e=>set("estado",e.target.value)} options={EST_V}/><Sel label="Procedencia" value={f.procedencia} onChange={e=>set("procedencia",e.target.value)} options={PROC}/><Sel label="Ubicación" value={f.ubicacion} onChange={e=>set("ubicacion",e.target.value)} options={UBIC}/></div>
+    <Sec>Fechas y precios</Sec>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}><Inp label="Ingreso" type="date" value={f.fecha_ingreso} onChange={e=>set("fecha_ingreso",e.target.value)}/><Inp label="Venta" type="date" value={f.fecha_venta} onChange={e=>set("fecha_venta",e.target.value)}/><div/><Inp label="Compra ($)" type="number" value={f.precio_compra} onChange={e=>set("precio_compra",e.target.value)}/><Inp label="Venta ($)" type="number" value={f.precio_venta} onChange={e=>set("precio_venta",e.target.value)}/><Inp label="Mínimo ($)" type="number" value={f.precio_minimo} onChange={e=>set("precio_minimo",e.target.value)}/></div>
+    <Sec>Estado componentes</Sec>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10}}>{[["estado_cubiertas","Cubiertas"],["estado_pintura","Pintura"],["estado_motor","Motor"],["estado_interior","Interior"]].map(([k,l])=><Sel key={k} label={l} value={f[k]} onChange={e=>set(k,e.target.value)} options={EST_C}/>)}</div>
+    <Sec>Descripción</Sec><Txa value={f.descripcion} onChange={e=>set("descripcion",e.target.value)} placeholder="Descripción..."/><Txa label="Anotaciones" value={f.anotaciones} onChange={e=>set("anotaciones",e.target.value)} style={{marginTop:8}}/>
+    <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20,paddingTop:14,borderTop:"1px solid #e5e7eb"}}><Btn variant="secondary" onClick={onCancel}>Cancelar</Btn><Btn onClick={go} disabled={saving}>{saving?"Guardando...":(vehicle?"Guardar":"Agregar")}</Btn></div>
+  </Modal>;
+}
 
-  return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%)',
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 20, padding: 44, width: 420,
-        boxShadow: '0 20px 60px rgba(30,64,175,.12)',
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: 16,
-            background: 'linear-gradient(135deg, #1e40af, #3b82f6)',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', marginBottom: 12, fontSize: 24,
-          }}>🚗</div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: '0 0 4px', letterSpacing: -0.5 }}>
-            AutoGestión
-          </h1>
-          <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>
-            {mode === 'login' ? 'Ingresá a tu cuenta' : 'Registrá tu concesionario'}
-          </p>
-        </div>
+function ClientForm({client,onSave,onCancel}){
+  const[f,setF]=useState(client||{nombre:"",telefono:"",email:"",dni:"",direccion:"",notas:""});
+  const[saving,setSaving]=useState(false);const set=(k,v)=>setF(o=>({...o,[k]:v}));
+  const go=async()=>{setSaving(true);try{await onSave(f);}catch(e){alert(e.message);}setSaving(false);};
+  return <Modal onClose={onCancel} width={520}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{fontSize:18,fontWeight:700,margin:0}}>{client?"Editar":"Nuevo"} cliente</h2><button onClick={onCancel} style={{background:"none",border:"none",cursor:"pointer",color:"#9ca3af"}}><Ic.X/></button></div>
+    <div style={{display:"flex",flexDirection:"column",gap:10}}><Inp label="Nombre" value={f.nombre} onChange={e=>set("nombre",e.target.value)}/><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="Teléfono" value={f.telefono} onChange={e=>set("telefono",e.target.value)}/><Inp label="DNI" value={f.dni} onChange={e=>set("dni",e.target.value)}/></div><Inp label="Email" value={f.email} onChange={e=>set("email",e.target.value)}/><Inp label="Dirección" value={f.direccion} onChange={e=>set("direccion",e.target.value)}/><Txa label="Notas" value={f.notas} onChange={e=>set("notas",e.target.value)}/></div>
+    <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20,paddingTop:14,borderTop:"1px solid #e5e7eb"}}><Btn variant="secondary" onClick={onCancel}>Cancelar</Btn><Btn onClick={go} disabled={saving}>{saving?"Guardando...":(client?"Guardar":"Agregar")}</Btn></div>
+  </Modal>;
+}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-          {['login', 'register'].map(m => (
-            <button key={m} onClick={() => setMode(m)} style={{
-              flex: 1, padding: '8px 0', border: 'none', borderRadius: 8,
-              background: mode === m ? '#1e40af' : '#f3f4f6',
-              color: mode === m ? '#fff' : '#6b7280',
-              fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-            }}>{m === 'login' ? 'Iniciar sesión' : 'Registrarme'}</button>
-          ))}
-        </div>
+function DashboardPage(){
+  const[vehicles,setV]=useState([]);const[clients,setC]=useState([]);
+  useEffect(()=>{vehiclesApi.list().then(setV).catch(()=>{});clientsApi.list().then(setC).catch(()=>{});},[]);
+  const stock=vehicles.filter(v=>!v.vendido),sold=vehicles.filter(v=>v.vendido);
+  const totalP=sold.reduce((s,v)=>s+cProfit(v).profit,0);
+  const alerts=stock.filter(v=>v.fecha_ingreso&&dDiff(v.fecha_ingreso,td())>=45);
+  return <div><h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:"0 0 20px"}}>Dashboard</h1>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:14,marginBottom:24}}><StatCard label="En stock" value={stock.length} icon={<Ic.Car/>} color="#0284c7"/><StatCard label="Vendidos" value={sold.length} icon={<Ic.Chart/>} color="#16a34a"/><StatCard label="Ganancia total" value={fmt$(totalP)} icon={<Ic.Dollar/>} color="#16a34a"/><StatCard label="Clientes" value={clients.length} icon={<Ic.Users/>} color="#f59e0b"/></div>
+    {alerts.length>0&&<Card style={{marginBottom:20,background:"#fffbeb",border:"1px solid #fde68a",padding:16}}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><span style={{color:"#f59e0b"}}><Ic.Alert/></span><span style={{fontSize:14,fontWeight:700,color:"#92400e"}}>{alerts.length} vehículo(s) con +45 días sin vender</span></div>{alerts.map(v=><div key={v.id} style={{fontSize:12,color:"#78350f",padding:"3px 0",display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:600}}>{v.titulo||`${v.marca} ${v.modelo}`}</span><span>{dDiff(v.fecha_ingreso,td())}d — {v.ubicacion}</span></div>)}</Card>}
+    {sold.length>0&&<Card><h3 style={{fontSize:14,fontWeight:700,margin:"0 0 12px"}}>Últimas ventas</h3><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr style={{borderBottom:"2px solid #e5e7eb"}}>{["Vehículo","Compra","Venta","Ganancia","%"].map(h=><th key={h} style={{padding:"6px 8px",textAlign:"left",fontWeight:600,color:"#6b7280",fontSize:10,textTransform:"uppercase"}}>{h}</th>)}</tr></thead><tbody>{sold.slice(-5).reverse().map(v=>{const p=cProfit(v);return <tr key={v.id} style={{borderBottom:"1px solid #f3f4f6"}}><td style={{padding:"7px 8px",fontWeight:600}}>{v.titulo||`${v.marca} ${v.modelo}`}</td><td style={{padding:"7px 8px",color:"#6b7280"}}>{fmt$(v.precio_compra)}</td><td style={{padding:"7px 8px",color:"#6b7280"}}>{fmt$(v.precio_venta)}</td><td style={{padding:"7px 8px",fontWeight:700,color:p.profit>=0?"#16a34a":"#dc2626"}}>{fmt$(p.profit)}</td><td style={{padding:"7px 8px",color:p.profit>=0?"#16a34a":"#dc2626"}}>{p.pct.toFixed(1)}%</td></tr>})}</tbody></table></div></Card>}
+    {vehicles.length===0&&<Card style={{textAlign:"center",padding:48,color:"#9ca3af"}}><p style={{margin:0}}>No hay vehículos aún. Andá a "Vehículos" para cargar el primero.</p></Card>}
+  </div>;
+}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {mode === 'register' && (
-            <>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#4b5563', marginBottom: 4, display: 'block' }}>
-                  Nombre del concesionario
-                </label>
-                <input style={inputStyle} placeholder="Ej: Automotores López"
-                  value={form.concesionario} onChange={e => set('concesionario', e.target.value)} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#4b5563', marginBottom: 4, display: 'block' }}>
-                  Tu nombre
-                </label>
-                <input style={inputStyle} placeholder="Tu nombre completo"
-                  value={form.nombre} onChange={e => set('nombre', e.target.value)} />
-              </div>
-            </>
-          )}
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#4b5563', marginBottom: 4, display: 'block' }}>Email</label>
-            <input style={inputStyle} type="email" placeholder="tu@email.com"
-              value={form.email} onChange={e => set('email', e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
-          </div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: '#4b5563', marginBottom: 4, display: 'block' }}>Contraseña</label>
-            <input style={inputStyle} type="password" placeholder="Mínimo 6 caracteres"
-              value={form.password} onChange={e => set('password', e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
-          </div>
+function VehiclesPage(){
+  const[vehicles,setV]=useState([]);const[loading,setL]=useState(true);const[sf,setSf]=useState(false);const[ev,setEv]=useState(null);const[search,setSearch]=useState("");
+  const load=()=>{setL(true);vehiclesApi.list().then(d=>{setV(d);setL(false);}).catch(()=>setL(false));};
+  useEffect(load,[]);
+  const save=async f=>{if(f.id)await vehiclesApi.update(f.id,f);else await vehiclesApi.create(f);setSf(false);setEv(null);load();};
+  const del=async id=>{if(!confirm("¿Eliminar?"))return;await vehiclesApi.delete(id);load();};
+  const filt=vehicles.filter(v=>{if(!search)return true;const q=search.toLowerCase();return[v.titulo,v.marca,v.modelo,v.patente].some(f=>(f||"").toLowerCase().includes(q));});
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}><h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:0}}>Vehículos</h1><div style={{display:"flex",gap:6}}><Btn variant="secondary" size="sm" onClick={()=>exportCSV(filt,[{label:"Título",get:v=>v.titulo||`${v.marca} ${v.modelo}`},{label:"Marca",key:"marca"},{label:"Año",key:"anio"},{label:"Precio",key:"precio_venta"},{label:"Estado",key:"estado"}],"checkcar-vehiculos")}><Ic.Download/> Excel</Btn><Btn onClick={()=>{setEv(null);setSf(true);}}><Ic.Plus/> Nuevo</Btn></div></div>
+    <Card style={{marginBottom:14,padding:12}}><div style={{position:"relative"}}><span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",color:"#9ca3af"}}><Ic.Search/></span><input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",padding:"8px 10px 8px 30px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:12,background:"#fafbfc",outline:"none",boxSizing:"border-box"}}/></div></Card>
+    {loading?<p style={{color:"#6b7280"}}>Cargando...</p>:filt.length>0?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:14}}>{filt.map(v=><Card key={v.id} style={{padding:16}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><div><div style={{fontSize:14,fontWeight:700,color:"#111827"}}>{v.titulo||`${v.marca} ${v.modelo}`}</div><div style={{fontSize:11,color:"#9ca3af",marginTop:2}}>{[v.anio,v.transmision,v.kilometros?Number(v.kilometros).toLocaleString()+" km":null].filter(Boolean).join(" · ")}</div></div><Badge color={sColor(v.estado)}>{v.estado}</Badge></div>{v.precio_venta&&<div style={{fontSize:18,fontWeight:700,color:"#0284c7",margin:"8px 0"}}>{fmt$(v.precio_venta)}</div>}<div style={{display:"flex",gap:4,marginTop:10,paddingTop:10,borderTop:"1px solid #f3f4f6"}}><Btn variant="secondary" size="sm" onClick={()=>{setEv(v);setSf(true);}} style={{flex:1}}><Ic.Edit/> Editar</Btn><Btn variant="danger" size="sm" onClick={()=>del(v.id)}><Ic.Trash/></Btn></div></Card>)}</div>:<Card style={{textAlign:"center",padding:40,color:"#9ca3af"}}><p style={{margin:0}}>No hay vehículos.</p></Card>}
+    {sf&&<VehicleForm vehicle={ev} onSave={save} onCancel={()=>{setSf(false);setEv(null);}}/>}
+  </div>;
+}
 
-          {error && (
-            <div style={{
-              fontSize: 12, color: '#dc2626', background: '#fef2f2',
-              padding: '8px 12px', borderRadius: 8, border: '1px solid #fecaca',
-            }}>{error}</div>
-          )}
+function ClientsPage(){
+  const[clients,setC]=useState([]);const[loading,setL]=useState(true);const[sf,setSf]=useState(false);const[ec,setEc]=useState(null);const[search,setSearch]=useState("");
+  const load=()=>{setL(true);clientsApi.list().then(d=>{setC(d);setL(false);}).catch(()=>setL(false));};
+  useEffect(load,[]);
+  const save=async f=>{if(f.id)await clientsApi.update(f.id,f);else await clientsApi.create(f);setSf(false);setEc(null);load();};
+  const del=async id=>{if(!confirm("¿Eliminar?"))return;await clientsApi.delete(id);load();};
+  const filt=clients.filter(c=>{if(!search)return true;const q=search.toLowerCase();return[c.nombre,c.telefono,c.email,c.dni].some(f=>(f||"").toLowerCase().includes(q));});
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:0}}>Clientes</h1><div style={{display:"flex",gap:6}}><Btn variant="secondary" size="sm" onClick={()=>exportCSV(clients,[{label:"Nombre",key:"nombre"},{label:"Teléfono",key:"telefono"},{label:"Email",key:"email"},{label:"DNI",key:"dni"}],"checkcar-clientes")}><Ic.Download/> Excel</Btn><Btn onClick={()=>{setEc(null);setSf(true);}}><Ic.Plus/> Nuevo</Btn></div></div>
+    <Card style={{marginBottom:14,padding:12}}><div style={{position:"relative"}}><span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",color:"#9ca3af"}}><Ic.Search/></span><input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",padding:"8px 10px 8px 30px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:12,background:"#fafbfc",outline:"none",boxSizing:"border-box"}}/></div></Card>
+    {loading?<p style={{color:"#6b7280"}}>Cargando...</p>:filt.length>0?<Card style={{padding:0,overflow:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr style={{borderBottom:"2px solid #e5e7eb"}}>{["Nombre","Teléfono","Email","DNI","Acciones"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,color:"#6b7280",fontSize:10,textTransform:"uppercase"}}>{h}</th>)}</tr></thead><tbody>{filt.map(c=><tr key={c.id} style={{borderBottom:"1px solid #f3f4f6"}}><td style={{padding:"10px 14px",fontWeight:600}}>{c.nombre}</td><td style={{padding:"10px 14px",color:"#6b7280"}}>{c.telefono||"-"}</td><td style={{padding:"10px 14px",color:"#6b7280"}}>{c.email||"-"}</td><td style={{padding:"10px 14px",color:"#6b7280"}}>{c.dni||"-"}</td><td style={{padding:"10px 14px"}}><div style={{display:"flex",gap:4}}><Btn variant="secondary" size="sm" onClick={()=>{setEc(c);setSf(true);}}><Ic.Edit/></Btn><Btn variant="danger" size="sm" onClick={()=>del(c.id)}><Ic.Trash/></Btn></div></td></tr>)}</tbody></table></Card>:<Card style={{textAlign:"center",padding:40,color:"#9ca3af"}}><p style={{margin:0}}>No hay clientes.</p></Card>}
+    {sf&&<ClientForm client={ec} onSave={save} onCancel={()=>{setSf(false);setEc(null);}}/>}
+  </div>;
+}
 
-          <button onClick={handleSubmit} disabled={loading} style={{
-            padding: '12px', background: '#1e40af', color: '#fff', border: 'none',
-            borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer',
-            fontFamily: 'inherit', marginTop: 4, opacity: loading ? 0.7 : 1,
-          }}>
-            {loading ? 'Cargando...' : (mode === 'login' ? '🔐 Iniciar sesión' : '🚀 Crear cuenta')}
-          </button>
-        </div>
+function SalesPage(){
+  const[stats,setStats]=useState(null);
+  useEffect(()=>{salesApi.stats().then(setStats).catch(()=>{});},[]);
+  if(!stats)return <p style={{color:"#6b7280"}}>Cargando...</p>;
+  return <div><h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:"0 0 20px"}}>Ventas</h1>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:14,marginBottom:20}}><StatCard label="Vendidos" value={stats.total_vendidos} icon={<Ic.Car/>} color="#16a34a"/><StatCard label="Ganancia total" value={fmt$(stats.total_ganancia)} icon={<Ic.Dollar/>} color="#0284c7"/><StatCard label="Gan. promedio" value={fmt$(stats.ganancia_promedio)} icon={<Ic.Chart/>} color="#f59e0b"/></div>
+    {stats.marcas?.length>0&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}><Card><h3 style={{fontSize:13,fontWeight:700,margin:"0 0 12px"}}>Marcas más vendidas</h3>{stats.marcas.slice(0,8).map(m=><div key={m.marca} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0"}}><span style={{fontWeight:600}}>{m.marca}</span><Badge color="#6b7280">{m.total}</Badge></div>)}</Card><Card><h3 style={{fontSize:13,fontWeight:700,margin:"0 0 12px"}}>Modelos más vendidos</h3>{stats.modelos.slice(0,8).map(m=><div key={m.nombre} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0"}}><span style={{fontWeight:600}}>{m.nombre}</span><Badge color="#6b7280">{m.total}</Badge></div>)}</Card></div>}
+    {stats.total_vendidos===0&&<Card style={{textAlign:"center",padding:40,color:"#9ca3af"}}><p style={{margin:0}}>No hay ventas registradas aún.</p></Card>}
+  </div>;
+}
+
+function ActivityPage(){
+  const[log,setLog]=useState([]);const[search,setSearch]=useState("");
+  useEffect(()=>{activityApi.list().then(setLog).catch(()=>{});},[]);
+  const filt=log.filter(l=>{if(!search)return true;const q=search.toLowerCase();return l.action.toLowerCase().includes(q)||(l.user_name||"").toLowerCase().includes(q);});
+  return <div><h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:"0 0 16px"}}>Actividad</h1>
+    <Card style={{marginBottom:14,padding:12}}><div style={{position:"relative"}}><span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",color:"#9ca3af"}}><Ic.Search/></span><input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",padding:"8px 10px 8px 30px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:12,background:"#fafbfc",outline:"none",boxSizing:"border-box"}}/></div></Card>
+    {filt.length>0?<Card style={{padding:0}}><div style={{maxHeight:550,overflowY:"auto"}}>{filt.map((l,i)=><div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 16px",borderBottom:"1px solid #f3f4f6"}}><div style={{width:28,height:28,borderRadius:"50%",background:"#f0f9ff",display:"flex",alignItems:"center",justifyContent:"center",color:"#0284c7",flexShrink:0}}><Ic.Log/></div><div><div style={{fontSize:12,color:"#111827"}}>{l.action}</div><div style={{display:"flex",gap:8,marginTop:2}}><span style={{fontSize:10,color:"#6b7280"}}>{l.user_name}</span><span style={{fontSize:10,color:"#9ca3af"}}>{new Date(l.created_at).toLocaleString("es-AR")}</span></div></div></div>)}</div></Card>:<Card style={{textAlign:"center",padding:40,color:"#9ca3af"}}><p style={{margin:0}}>Sin actividad.</p></Card>}
+  </div>;
+}
+
+function LoginPage(){
+  const{login,register}=useAuth();const[mode,setMode]=useState("login");
+  const[form,setForm]=useState({email:"",password:"",nombre:"",concesionario:""});
+  const[error,setError]=useState("");const[loading,setLoading]=useState(false);
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const go=async()=>{setLoading(true);setError("");try{if(mode==="login")await login(form.email,form.password);else{if(!form.concesionario||!form.nombre){setError("Completá todos los campos");setLoading(false);return;}await register(form);}}catch(e){setError(e.message);}setLoading(false);};
+  const iS={padding:"10px 14px",border:"1px solid #e5e7eb",borderRadius:10,fontSize:14,background:"#fafbfc",outline:"none",width:"100%",boxSizing:"border-box"};
+  return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#f0f9ff,#e0f2fe,#bae6fd)",fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <div style={{background:"#fff",borderRadius:20,padding:44,width:420,boxShadow:"0 20px 60px rgba(2,132,199,.12)"}}>
+      <div style={{textAlign:"center",marginBottom:28}}><div style={{width:56,height:56,borderRadius:16,background:"linear-gradient(135deg,#0284c7,#38bdf8)",display:"inline-flex",alignItems:"center",justifyContent:"center",color:"#fff",marginBottom:12,fontSize:22,fontWeight:800}}>✓</div><h1 style={{fontSize:26,fontWeight:800,color:"#111827",margin:"0 0 4px"}}>CheckCar</h1><p style={{fontSize:13,color:"#6b7280",margin:0}}>{mode==="login"?"Ingresá a tu cuenta":"Registrá tu concesionario"}</p></div>
+      <div style={{display:"flex",gap:8,marginBottom:20}}>{["login","register"].map(m=><button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:8,border:"none",borderRadius:8,background:mode===m?"#0284c7":"#f3f4f6",color:mode===m?"#fff":"#6b7280",fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{m==="login"?"Iniciar sesión":"Registrarme"}</button>)}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {mode==="register"&&<><div><label style={{fontSize:12,fontWeight:600,color:"#4b5563",display:"block",marginBottom:4}}>Nombre del concesionario</label><input style={iS} placeholder="Ej: Automotores López" value={form.concesionario} onChange={e=>set("concesionario",e.target.value)}/></div><div><label style={{fontSize:12,fontWeight:600,color:"#4b5563",display:"block",marginBottom:4}}>Tu nombre</label><input style={iS} placeholder="Nombre completo" value={form.nombre} onChange={e=>set("nombre",e.target.value)}/></div></>}
+        <div><label style={{fontSize:12,fontWeight:600,color:"#4b5563",display:"block",marginBottom:4}}>Email</label><input style={iS} type="email" placeholder="tu@email.com" value={form.email} onChange={e=>set("email",e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()}/></div>
+        <div><label style={{fontSize:12,fontWeight:600,color:"#4b5563",display:"block",marginBottom:4}}>Contraseña</label><input style={iS} type="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={e=>set("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()}/></div>
+        {error&&<div style={{fontSize:12,color:"#dc2626",background:"#fef2f2",padding:"8px 12px",borderRadius:8,border:"1px solid #fecaca"}}>{error}</div>}
+        <button onClick={go} disabled={loading} style={{padding:12,background:"#0284c7",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:loading?.7:1}}>{loading?"Cargando...":(mode==="login"?"Ingresar":"Crear cuenta")}</button>
       </div>
     </div>
-  );
+  </div>;
 }
 
-function MainApp() {
-  const { user, tenant, logout } = useAuth();
-  const [page, setPage] = useState('dashboard');
-
-  // Acá irían los imports de tus pages reales
-  // que usan api.js para comunicarse con el backend
-
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', emoji: '📊' },
-    { id: 'vehicles', label: 'Vehículos', emoji: '🚗' },
-    { id: 'sales', label: 'Ventas', emoji: '📈' },
-    { id: 'clients', label: 'Clientes', emoji: '👥' },
-    { id: 'activity', label: 'Actividad', emoji: '📋' },
-  ];
-
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
-      {/* Sidebar */}
-      <nav style={{
-        width: 230, background: '#fff', borderRight: '1px solid #e5e7eb',
-        padding: '20px 10px', display: 'flex', flexDirection: 'column',
-        position: 'sticky', top: 0, height: '100vh', boxSizing: 'border-box',
-      }}>
-        <div style={{ padding: '0 10px', marginBottom: 28 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: '#111827', letterSpacing: -0.5 }}>
-            {tenant?.nombre || 'AutoGestión'}
-          </div>
-          <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Sistema de gestión
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {navItems.map(item => (
-            <button key={item.id} onClick={() => setPage(item.id)} style={{
-              display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px',
-              border: 'none', borderRadius: 9, cursor: 'pointer', fontSize: 13,
-              fontWeight: 600, fontFamily: 'inherit', textAlign: 'left',
-              background: page === item.id ? '#eff6ff' : 'transparent',
-              color: page === item.id ? '#1e40af' : '#6b7280',
-            }}>
-              <span>{item.emoji}</span> {item.label}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ marginTop: 'auto', padding: 10, borderTop: '1px solid #f3f4f6' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{user?.nombre}</div>
-          <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 8 }}>{user?.rol} · {user?.email}</div>
-          <button onClick={logout} style={{
-            width: '100%', padding: '7px 10px', border: '1px solid #e5e7eb',
-            borderRadius: 7, background: 'none', cursor: 'pointer', fontSize: 11,
-            color: '#6b7280', fontWeight: 600, fontFamily: 'inherit',
-          }}>Cerrar sesión</button>
-        </div>
-      </nav>
-
-      {/* Main — Acá se renderizan las pages que usan api.js */}
-      <main style={{ flex: 1, padding: '28px 36px', maxWidth: 1200 }}>
-        <div style={{
-          background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
-          padding: 32, textAlign: 'center', color: '#6b7280',
-        }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
-            ✅ Backend conectado correctamente
-          </h2>
-          <p style={{ fontSize: 14, marginBottom: 16 }}>
-            Estás logueado como <strong>{user?.nombre}</strong> en <strong>{tenant?.nombre}</strong>
-          </p>
-          <p style={{ fontSize: 13 }}>
-            Página actual: <strong>{page}</strong>
-          </p>
-          <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 16 }}>
-            El frontend existente (concesionario.jsx) se migra reemplazando
-            las llamadas a storage por las funciones de api.js.<br />
-            Ejemplo: en vez de <code>saveToStorage(data)</code>, usás <code>vehicles.create(data)</code>
-          </p>
-        </div>
-      </main>
-    </div>
-  );
+function MainApp(){
+  const{user,tenant,logout}=useAuth();const[page,setPage]=useState("dashboard");
+  const nav=[{id:"dashboard",label:"Dashboard",icon:<Ic.Home/>},{id:"vehicles",label:"Vehículos",icon:<Ic.Car/>},{id:"sales",label:"Ventas",icon:<Ic.Chart/>},{id:"clients",label:"Clientes",icon:<Ic.Users/>},{id:"activity",label:"Actividad",icon:<Ic.Log/>}];
+  return <div style={{display:"flex",minHeight:"100vh",background:"#f8fafc",fontFamily:"'DM Sans','Segoe UI',system-ui,sans-serif"}}>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <nav style={{width:220,background:"#fff",borderRight:"1px solid #e5e7eb",padding:"20px 10px",display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh",boxSizing:"border-box",flexShrink:0}}>
+      <div style={{padding:"0 10px",marginBottom:24}}><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:32,height:32,borderRadius:9,background:"linear-gradient(135deg,#0284c7,#38bdf8)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:800}}>✓</div><div><div style={{fontSize:15,fontWeight:800,color:"#111827",lineHeight:1.2}}>{tenant?.nombre||"CheckCar"}</div><div style={{fontSize:9,color:"#9ca3af",textTransform:"uppercase",letterSpacing:.5}}>CheckCar</div></div></div></div>
+      <div style={{display:"flex",flexDirection:"column",gap:2}}>{nav.map(item=><button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",border:"none",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600,background:page===item.id?"#f0f9ff":"transparent",color:page===item.id?"#0284c7":"#6b7280",fontFamily:"inherit",textAlign:"left"}}>{item.icon}{item.label}</button>)}</div>
+      <div style={{marginTop:"auto",padding:10,borderTop:"1px solid #f3f4f6"}}><div style={{fontSize:12,fontWeight:600,color:"#374151"}}>{user?.nombre}</div><div style={{fontSize:10,color:"#9ca3af",marginBottom:8}}>{user?.rol} · {user?.email}</div><button onClick={logout} style={{width:"100%",padding:"6px 10px",border:"1px solid #e5e7eb",borderRadius:7,background:"none",cursor:"pointer",fontSize:11,color:"#6b7280",fontWeight:600,fontFamily:"inherit",display:"flex",alignItems:"center",gap:4,justifyContent:"center"}}><Ic.Logout/> Cerrar sesión</button></div>
+    </nav>
+    <main style={{flex:1,padding:"28px 36px",maxWidth:1200}}>{page==="dashboard"&&<DashboardPage/>}{page==="vehicles"&&<VehiclesPage/>}{page==="sales"&&<SalesPage/>}{page==="clients"&&<ClientsPage/>}{page==="activity"&&<ActivityPage/>}</main>
+  </div>;
 }
 
-// ============================================================
-// APP ROOT
-// ============================================================
-export default function App() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-}
-
-function AppContent() {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div style={{
-        height: '100vh', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', color: '#6b7280',
-      }}>Cargando...</div>
-    );
-  }
-
-  return user ? <MainApp /> : <LoginPage />;
-}
+export default function App(){return <AuthProvider><AppContent/></AuthProvider>;}
+function AppContent(){const{user,loading}=useAuth();if(loading)return <div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#6b7280"}}>Cargando...</div>;return user?<MainApp/>:<LoginPage/>;}
