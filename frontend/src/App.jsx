@@ -328,7 +328,7 @@ function VehPage({data,setData,user,allMarcas,addMarca}){const [sf,setSf]=useSta
 
 /* ═══════ SOLD VEHICLES PAGE ═══════ */
 function SoldPage({data,setData,user}){
-  const [mes,setMes]=useState("");const [marca,setMarca]=useState("");const [vendedorF,setVendedorF]=useState("");const [search,setSearch]=useState("");const [vv,setVv]=useState(null);
+  const [mes,setMes]=useState("");const [marca,setMarca]=useState("");const [vendedorF,setVendedorF]=useState("");const [search,setSearch]=useState("");const [vv,setVv]=useState(null);const [sf2,setSf2]=useState(false);const [ev2,setEv2]=useState(null);
   const allSold=data.vehicles.filter(v=>v.vendido);
   const meses=[...new Set(allSold.map(v=>v.fechaVenta?.slice(0,7)).filter(Boolean))].sort().reverse();
   const marcasV=[...new Set(allSold.map(v=>v.marca).filter(Boolean))].sort();
@@ -407,7 +407,8 @@ function SoldPage({data,setData,user}){
         </div>
       </Card>
     );})}</div>:<Card style={{textAlign:"center",padding:36,color:"#9ca3af"}}><p style={{margin:0}}>No hay vehículos vendidos{mes?" en este mes":""}{vendedorF?" por este vendedor":""}.</p></Card>}
-    {vv&&<VDetail vehicle={vv} onClose={()=>setVv(null)} onEdit={()=>{}} publications={data.publications} onPublish={()=>{}} onUnpublish={()=>{}}/>}
+    {vv&&!sf2&&<VDetail vehicle={vv} onClose={()=>setVv(null)} onEdit={v=>{setVv(null);setEv2(v);setSf2(true);}} publications={data.publications} onPublish={()=>{}} onUnpublish={()=>{}}/>}
+    {sf2&&<VForm vehicle={ev2} allMarcas={[...new Set([...DEF_MARCAS,...(data.customMarcas||[])])].sort()} onSave={f=>{const now=new Date().toLocaleString("es-AR");const nd={...data,vehicles:data.vehicles.map(v=>v.id===f.id?f:v),activityLog:[{date:now,user:user.name,action:`Editó vehículo vendido: ${f.titulo||f.marca+" "+f.modelo}`},...(data.activityLog||[])]};setData(nd);setSf2(false);setEv2(null);}} onCancel={()=>{setSf2(false);setEv2(null);}} onAddMarca={()=>{}}/>}
   </div>);
 }
 
