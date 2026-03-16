@@ -495,6 +495,105 @@ function PubPage({data,setData,user}){
 
 function ActPage({data}){const [q,setQ]=useState("");const log=(data.activityLog||[]).filter(l=>{if(!q)return true;const s=q.toLowerCase();return l.action.toLowerCase().includes(s)||l.user.toLowerCase().includes(s);});return(<div><h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:"0 0 16px",letterSpacing:-.5}}>Actividad</h1><Card style={{marginBottom:14,padding:12}}><div style={{position:"relative"}}><span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",color:"#9ca3af"}}><Ic.Search/></span><input placeholder="Buscar..." value={q} onChange={e=>setQ(e.target.value)} style={{width:"100%",padding:"7px 9px 7px 28px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:12,background:"#fafbfc",outline:"none",boxSizing:"border-box"}}/></div></Card>{log.length>0?<Card style={{padding:0}}><div style={{maxHeight:550,overflowY:"auto"}}>{log.map((l,i)=><div key={i} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 16px",borderBottom:"1px solid #f3f4f6"}}><div style={{width:28,height:28,borderRadius:"50%",background:"#f0f9ff",display:"flex",alignItems:"center",justifyContent:"center",color:"#0284c7",flexShrink:0,marginTop:2}}><Ic.Log/></div><div style={{flex:1}}><div style={{fontSize:12,color:"#111827",fontWeight:500}}>{l.action}</div><div style={{display:"flex",gap:8,marginTop:2}}><span style={{fontSize:10,color:"#6b7280"}}>{l.user}</span><span style={{fontSize:10,color:"#9ca3af"}}>{l.date}</span></div></div></div>)}</div></Card>:<Card style={{textAlign:"center",padding:36,color:"#9ca3af"}}><p style={{margin:0}}>Sin actividad.</p></Card>}</div>);}
 
+/* ═══════ USER MANAGER (sidebar) ═══════ */
+function UserManager({user,data,setData}){
+  const [open,setOpen]=useState(false);
+  const [showForm,setSF]=useState(false);
+  const [form,setForm]=useState({nombre:"",username:"",password:"",role:"vendedor"});
+  const [err,setErr]=useState("");
+  const [apiUsers,setApiUsers]=useState([]);
+  const [loadingApi,setLoadingApi]=useState(false);
+
+  const loadApiUsers=async()=>{if(!hasAPI)return;setLoadingApi(true);try{const d=await apiRequest('/auth/users');setApiUsers(d);}catch{}setLoadingApi(false);};
+
+  useEffect(()=>{if(open&&hasAPI)loadApiUsers();},[open]);
+
+  const tenantUsers=hasAPI?apiUsers:(data.users||[]);
+
+  const addUser=async()=>{
+    if(!form.nombre||!form.username||!form.password){setErr("Completá todos los campos");return;}
+    if(hasAPI){
+      try{
+        await apiRequest('/auth/users',{method:'POST',body:JSON.stringify({nombre:form.nombre,email:form.username,password:form.password,rol:form.role})});
+        setForm({nombre:"",username:"",password:"",role:"vendedor"});setSF(false);setErr("");loadApiUsers();
+        const now=new Date().toLocaleString("es-AR");
+        setData({...data,activityLog:[{date:now,user:user.name,action:`Creó usuario: ${form.nombre} (${form.role})`},...(data.activityLog||[])]});
+      }catch(e){setErr(e.message);}
+    }else{
+      if(data.users.find(u=>u.username===form.username)){setErr("Ya existe un usuario con ese nombre");return;}
+      const now=new Date().toLocaleString("es-AR");
+      const newUser={username:form.username,password:form.password,role:form.role,name:form.nombre};
+      setData({...data,users:[...data.users,newUser],activityLog:[{date:now,user:user.name,action:`Creó usuario: ${form.nombre} (${form.role})`},...(data.activityLog||[])]});
+      setForm({nombre:"",username:"",password:"",role:"vendedor"});setSF(false);setErr("");
+    }
+  };
+
+  const delUser=(u)=>{
+    const uName=hasAPI?u.nombre:(u.name||u.username);
+    const uId=hasAPI?u.email:u.username;
+    if(uId===user.username||uId===(hasAPI?user.username:user.username)){alert("No podés eliminarte a vos mismo");return;}
+    if(!confirm(`¿Eliminar a ${uName}?`))return;
+    if(hasAPI){
+      // API delete not implemented in routes yet, just remove from local view
+      setApiUsers(apiUsers.filter(x=>x.id!==u.id));
+    }else{
+      const now=new Date().toLocaleString("es-AR");
+      setData({...data,users:data.users.filter(x=>x.username!==u.username),activityLog:[{date:now,user:user.name,action:`Eliminó usuario: ${uName}`},...(data.activityLog||[])]});
+    }
+  };
+
+  const iS={padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:6,fontSize:11,background:"#fafbfc",outline:"none",width:"100%",boxSizing:"border-box",color:"#1f2937"};
+
+  return(
+    <div style={{marginBottom:10}}>
+      <button onClick={()=>setOpen(!open)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 8px",background:open?"#f0f9ff":"#f9fafb",border:"1px solid #e5e7eb",borderRadius:7,cursor:"pointer",fontSize:10,color:open?"#0284c7":"#6b7280",fontWeight:600,width:"100%",fontFamily:"inherit",justifyContent:"center"}}>
+        <Ic.Users/> Gestionar usuarios <Ic.Down/>
+      </button>
+      {open&&(
+        <div style={{marginTop:8,background:"#f9fafb",borderRadius:8,border:"1px solid #e5e7eb",padding:10}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#374151",marginBottom:6}}>Usuarios del concesionario</div>
+          {loadingApi?<div style={{fontSize:10,color:"#9ca3af",padding:4}}>Cargando...</div>:
+          <div style={{maxHeight:120,overflowY:"auto",marginBottom:8}}>
+            {tenantUsers.map((u,i)=>{
+              const uName=hasAPI?u.nombre:(u.name||u.username);
+              const uRole=hasAPI?u.rol:u.role;
+              const uId=hasAPI?u.email:u.username;
+              const isMe=uId===(user.username);
+              return(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 6px",borderRadius:5,background:i%2===0?"#fff":"transparent",marginBottom:2}}>
+                  <div>
+                    <div style={{fontSize:10,fontWeight:600,color:"#374151"}}>{uName}{isMe&&<span style={{color:"#0284c7"}}> (vos)</span>}</div>
+                    <div style={{fontSize:9,color:"#9ca3af"}}>{uRole} · {uId}</div>
+                  </div>
+                  {!isMe&&<button onClick={()=>delUser(u)} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",padding:2,fontSize:10}}><Ic.Trash/></button>}
+                </div>
+              );
+            })}
+          </div>}
+          {!showForm?
+            <button onClick={()=>setSF(true)} style={{display:"flex",alignItems:"center",gap:3,padding:"5px 8px",background:"#0284c7",color:"#fff",border:"none",borderRadius:6,cursor:"pointer",fontSize:10,fontWeight:600,width:"100%",fontFamily:"inherit",justifyContent:"center"}}><Ic.Plus/> Nuevo usuario</button>
+          :(
+            <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              <input style={iS} placeholder="Nombre completo" value={form.nombre} onChange={e=>setForm(f=>({...f,nombre:e.target.value}))}/>
+              <input style={iS} placeholder={hasAPI?"Email":"Usuario"} value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}/>
+              <input style={iS} type="password" placeholder="Contraseña" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}/>
+              <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} style={iS}>
+                <option value="vendedor">Vendedor</option>
+                <option value="admin">Administrador</option>
+              </select>
+              {err&&<div style={{fontSize:10,color:"#dc2626",background:"#fef2f2",padding:"4px 6px",borderRadius:4}}>{err}</div>}
+              <div style={{display:"flex",gap:4}}>
+                <button onClick={()=>{setSF(false);setErr("");}} style={{flex:1,padding:"5px",background:"#f3f4f6",border:"1px solid #e5e7eb",borderRadius:5,cursor:"pointer",fontSize:10,fontFamily:"inherit",color:"#6b7280"}}>Cancelar</button>
+                <button onClick={addUser} style={{flex:1,padding:"5px",background:"#0284c7",color:"#fff",border:"none",borderRadius:5,cursor:"pointer",fontSize:10,fontWeight:600,fontFamily:"inherit"}}>Crear</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ═══════ MAIN APP ═══════ */
 export default function App(){
   const [data,setDR]=useState(INIT);const [page,setPage]=useState("dashboard");const [loaded,setLoaded]=useState(false);const [user,setUser]=useState(null);
@@ -515,7 +614,9 @@ export default function App(){
     <nav style={{width:215,background:"#fff",borderRight:"1px solid #e5e7eb",padding:"18px 8px",display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh",boxSizing:"border-box",flexShrink:0}}>
       <div style={{padding:"0 10px",marginBottom:24}}><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:32,height:32,borderRadius:9,background:"linear-gradient(135deg,#0284c7,#38bdf8)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:800,flexShrink:0}}>✓</div><div><div style={{fontSize:15,fontWeight:800,color:"#111827",letterSpacing:-.5,lineHeight:1.2}}>{(hasAPI&&localStorage.getItem('checkcar_tenant'))?JSON.parse(localStorage.getItem('checkcar_tenant')).nombre:"CheckCar"}</div><div style={{fontSize:9,color:"#9ca3af",fontWeight:500,letterSpacing:.5,textTransform:"uppercase"}}>Concesionario</div></div></div></div>
       <div style={{display:"flex",flexDirection:"column",gap:2}}>{nav.map(item=><button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 11px",border:"none",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,background:page===item.id?"#f0f9ff":"transparent",color:page===item.id?"#0284c7":"#6b7280",transition:"all .15s",fontFamily:"inherit",textAlign:"left",position:"relative"}}>{item.icon}{item.label}{item.id==="dashboard"&&alerts.length>0&&<span style={{marginLeft:"auto",minWidth:16,height:16,borderRadius:8,background:"#ef4444",color:"#fff",fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 3px"}}>{alerts.length}</span>}</button>)}</div>
-      <div style={{marginTop:"auto",padding:8,borderTop:"1px solid #f3f4f6"}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}><div style={{width:26,height:26,borderRadius:"50%",background:"#f0f9ff",display:"flex",alignItems:"center",justifyContent:"center",color:"#0284c7",fontSize:10,fontWeight:700,flexShrink:0}}>{user.name.charAt(0)}</div><div style={{minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:"#374151",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</div><div style={{fontSize:9,color:"#9ca3af"}}>{user.role}</div></div></div><button onClick={handleLogout} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 8px",background:"none",border:"1px solid #e5e7eb",borderRadius:6,cursor:"pointer",fontSize:10,color:"#6b7280",fontWeight:600,width:"100%",fontFamily:"inherit",justifyContent:"center"}}><Ic.Logout/> Salir</button><div style={{fontSize:9,color:"#d1d5db",textAlign:"center",marginTop:6}}>{data.vehicles.filter(v=>!v.vendido).length} stock · {data.vehicles.filter(v=>v.vendido).length} vendidos</div></div>
+      <div style={{marginTop:"auto",padding:8,borderTop:"1px solid #f3f4f6"}}>
+        {user.role==="admin"&&<UserManager user={user} data={data} setData={setData}/>}
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}><div style={{width:26,height:26,borderRadius:"50%",background:"#f0f9ff",display:"flex",alignItems:"center",justifyContent:"center",color:"#0284c7",fontSize:10,fontWeight:700,flexShrink:0}}>{user.name.charAt(0)}</div><div style={{minWidth:0}}><div style={{fontSize:11,fontWeight:600,color:"#374151",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</div><div style={{fontSize:9,color:"#9ca3af"}}>{user.role}</div></div></div><button onClick={handleLogout} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 8px",background:"none",border:"1px solid #e5e7eb",borderRadius:6,cursor:"pointer",fontSize:10,color:"#6b7280",fontWeight:600,width:"100%",fontFamily:"inherit",justifyContent:"center"}}><Ic.Logout/> Salir</button><div style={{fontSize:9,color:"#d1d5db",textAlign:"center",marginTop:6}}>{data.vehicles.filter(v=>!v.vendido).length} stock · {data.vehicles.filter(v=>v.vendido).length} vendidos</div></div>
     </nav>
     <main style={{flex:1,padding:"24px 32px",maxWidth:1200,overflowX:"hidden"}}>
       {page==="dashboard"&&<DashPage data={data}/>}
