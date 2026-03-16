@@ -38,7 +38,7 @@ function cProfit(v){const c=+(v.precioCompra)||0,s=+(v.precioVenta)||0,g=(v.gast
 function eColor(e){return{"Excelente":"#16a34a","Muy Bueno":"#22c55e","Bueno":"#eab308","Regular":"#f97316","Malo":"#ef4444"}[e]||"#6b7280";}
 function sColor(s){return{"Disponible":"#2563eb","Reservado":"#f59e0b","Vendido":"#16a34a","En preparación":"#8b5cf6"}[s]||"#6b7280";}
 
-const emptyV=()=>({id:0,titulo:"",marca:"",modelo:"",anio:"",motor:"",version:"",transmision:"Manual",condicion:"Usado",kilometros:"",fechaIngreso:td(),fechaVenta:"",patente:"",chasis:"",nroMotor:"",precioCompra:"",precioVenta:"",precioMinimo:"",descripcion:"",anotaciones:"",estado:"Disponible",procedencia:"Compra directa",ubicacion:"Salón principal",estadoCubiertas:"Bueno",estadoPintura:"Bueno",estadoMotor:"Bueno",estadoInterior:"Bueno",fotos:[],gastos:[],historial:[],vendido:false});
+const emptyV=()=>({id:0,titulo:"",marca:"",modelo:"",anio:"",motor:"",version:"",transmision:"Manual",condicion:"Usado",kilometros:"",fechaIngreso:td(),fechaVenta:"",patente:"",chasis:"",nroMotor:"",precioCompra:"",precioVenta:"",precioMinimo:"",descripcion:"",anotaciones:"",estado:"Disponible",procedencia:"Compra directa",ubicacion:"Salón principal",estadoCubiertas:"Bueno",estadoPintura:"Bueno",estadoMotor:"Bueno",estadoInterior:"Bueno",fotos:[],gastos:[],historial:[],vendido:false,vendedor:"",clienteVentaId:""});
 
 /* ═══════ ICONS ═══════ */
 const Ic={
@@ -155,7 +155,7 @@ function GastosEd({gastos,onChange}){const add=()=>onChange([...(gastos||[]),{de
 function HistEd({historial,onChange}){const add=()=>onChange([...(historial||[]),{fecha:td(),detalle:""}]);const upd=(i,f,v)=>{const h=[...historial];h[i]={...h[i],[f]:v};onChange(h);};const del=i=>onChange(historial.filter((_,j)=>j!==i));return(<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><label style={{fontSize:11,fontWeight:600,color:"#4b5563"}}>Historial</label><Btn variant="secondary" size="sm" onClick={add}><Ic.Plus/> Agregar</Btn></div>{(historial||[]).map((h,i)=>(<div key={i} style={{display:"flex",gap:6,marginBottom:4,alignItems:"center"}}><input type="date" value={h.fecha} onChange={e=>upd(i,"fecha",e.target.value)} style={{width:130,padding:"6px 9px",border:"1px solid #e5e7eb",borderRadius:6,fontSize:12,background:"#fafbfc"}}/><input placeholder="Detalle..." value={h.detalle} onChange={e=>upd(i,"detalle",e.target.value)} style={{flex:1,padding:"6px 9px",border:"1px solid #e5e7eb",borderRadius:6,fontSize:12,background:"#fafbfc"}}/><button onClick={()=>del(i)} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",padding:2}}><Ic.Trash/></button></div>))}</div>);}
 
 /* ═══════ VEHICLE FORM ═══════ */
-function VForm({vehicle,allMarcas,onSave,onCancel,onAddMarca}){
+function VForm({vehicle,allMarcas,onSave,onCancel,onAddMarca,clients}){
   const [f,setF]=useState(vehicle?{...vehicle,gastos:[...(vehicle.gastos||[])],historial:[...(vehicle.historial||[])],fotos:[...(vehicle.fotos||[])]}:emptyV());
   const [nm,setNm]=useState("");const [snm,setSnm]=useState(false);
   const set=(k,v)=>setF(o=>({...o,[k]:v}));
@@ -182,6 +182,11 @@ function VForm({vehicle,allMarcas,onSave,onCancel,onAddMarca}){
       <Sel label="Procedencia" value={f.procedencia} onChange={e=>set("procedencia",e.target.value)} options={PROC}/>
       <Sel label="Ubicación" value={f.ubicacion} onChange={e=>set("ubicacion",e.target.value)} options={UBIC}/>
     </div>
+    {f.estado==="Vendido"&&<><Sec>Datos de la venta</Sec>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      <Inp label="Vendedor (nombre y apellido)" placeholder="Ej: Juan Pérez" value={f.vendedor||""} onChange={e=>set("vendedor",e.target.value)}/>
+      <Sel label="Cliente comprador" value={f.clienteVentaId||""} onChange={e=>set("clienteVentaId",e.target.value)} options={[{value:"",label:"Seleccionar cliente..."},...(clients||[]).map(c=>({value:String(c.id),label:`${c.nombre} (${c.dni||c.telefono||"S/D"})`}))]}/>
+    </div></>}
     <Sec>Fechas</Sec>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
       <Inp label="Ingreso" type="date" value={f.fechaIngreso} onChange={e=>set("fechaIngreso",e.target.value)}/>
@@ -216,7 +221,7 @@ function VDetail({vehicle:v,onClose,onEdit,publications,onPublish,onUnpublish}){
       <div><h2 style={{fontSize:20,fontWeight:700,color:"#111827",margin:0}}>{v.titulo||`${v.marca} ${v.modelo}`}</h2><div style={{display:"flex",gap:5,marginTop:6,flexWrap:"wrap"}}><Badge color={sColor(v.estado)}>{v.estado}</Badge>{v.condicion&&<Badge color={v.condicion==="0km"?"#8b5cf6":"#6b7280"}>{v.condicion}</Badge>}{v.anio&&<Badge color="#6b7280">{v.anio}</Badge>}{v.transmision&&<Badge color="#6b7280">{v.transmision}</Badge>}{v.kilometros&&<Badge color="#6b7280">{Number(v.kilometros).toLocaleString()} km</Badge>}</div></div>
       <div style={{display:"flex",gap:5}}><Btn variant="secondary" size="sm" onClick={()=>onEdit(v)}><Ic.Edit/></Btn><button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",color:"#9ca3af"}}><Ic.X/></button></div>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"8px 18px",marginBottom:18}}>{[["Marca",v.marca],["Modelo",v.modelo],["Versión",v.version],["Motor",v.motor],["Transmisión",v.transmision],["Condición",v.condicion],["Patente",v.patente],["Chasis",v.chasis],["N° Motor",v.nroMotor],["Procedencia",v.procedencia],["Ubicación",v.ubicacion],["Ingreso",fmtD(v.fechaIngreso)],["Venta",fmtD(v.fechaVenta)]].filter(([_,val])=>val).map(([l,val])=><div key={l}><div style={{fontSize:10,color:"#9ca3af",fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>{l}</div><div style={{fontSize:13,color:"#374151",fontWeight:500,marginTop:1}}>{val}</div></div>)}{dias!==null&&<div><div style={{fontSize:10,color:"#9ca3af",fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>Días stock</div><div style={{fontSize:13,color:"#0284c7",fontWeight:700,marginTop:1}}>{dias}d</div></div>}</div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"8px 18px",marginBottom:18}}>{[["Marca",v.marca],["Modelo",v.modelo],["Versión",v.version],["Motor",v.motor],["Transmisión",v.transmision],["Condición",v.condicion],["Patente",v.patente],["Chasis",v.chasis],["N° Motor",v.nroMotor],["Procedencia",v.procedencia],["Ubicación",v.ubicacion],["Ingreso",fmtD(v.fechaIngreso)],["Venta",fmtD(v.fechaVenta)],["Vendedor",v.vendedor]].filter(([_,val])=>val).map(([l,val])=><div key={l}><div style={{fontSize:10,color:"#9ca3af",fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>{l}</div><div style={{fontSize:13,color:"#374151",fontWeight:500,marginTop:1}}>{val}</div></div>)}{dias!==null&&<div><div style={{fontSize:10,color:"#9ca3af",fontWeight:600,textTransform:"uppercase",letterSpacing:.5}}>Días stock</div><div style={{fontSize:13,color:"#0284c7",fontWeight:700,marginTop:1}}>{dias}d</div></div>}</div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginBottom:18}}>{[["Cubiertas",v.estadoCubiertas],["Pintura",v.estadoPintura],["Motor",v.estadoMotor],["Interior",v.estadoInterior]].map(([l,e])=><div key={l} style={{textAlign:"center",padding:"8px 4px",background:"#f9fafb",borderRadius:8}}><div style={{fontSize:10,color:"#9ca3af",fontWeight:600,marginBottom:2}}>{l}</div><div style={{fontSize:12,fontWeight:700,color:eColor(e)}}>{e}</div></div>)}</div>
     {(v.precioCompra||v.precioVenta)&&<Card style={{background:"#f8fafc",marginBottom:16,padding:14}}><div style={{fontSize:11,fontWeight:700,color:"#0284c7",marginBottom:8}}>Finanzas</div><div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,textAlign:"center"}}><div><div style={{fontSize:10,color:"#9ca3af"}}>Compra</div><div style={{fontSize:14,fontWeight:700,color:"#374151"}}>{fmt$(v.precioCompra)}</div></div><div><div style={{fontSize:10,color:"#9ca3af"}}>Gastos</div><div style={{fontSize:14,fontWeight:700,color:"#f59e0b"}}>{fmt$(tg)}</div></div><div><div style={{fontSize:10,color:"#9ca3af"}}>Venta</div><div style={{fontSize:14,fontWeight:700,color:"#374151"}}>{fmt$(v.precioVenta)}</div></div><div><div style={{fontSize:10,color:"#9ca3af"}}>Mín</div><div style={{fontSize:14,fontWeight:700,color:"#6b7280"}}>{fmt$(v.precioMinimo)}</div></div><div><div style={{fontSize:10,color:"#9ca3af"}}>Ganancia</div><div style={{fontSize:14,fontWeight:700,color:pr>=0?"#16a34a":"#dc2626"}}>{fmt$(pr)} ({pct.toFixed(1)}%)</div></div></div></Card>}
     {/* PUBLICACIONES */}
@@ -316,28 +321,34 @@ function VehPage({data,setData,user,allMarcas,addMarca}){const [sf,setSf]=useSta
     <Card style={{marginBottom:14,padding:12}}><div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}><div style={{position:"relative",flex:1,minWidth:160}}><span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",color:"#9ca3af"}}><Ic.Search/></span><input placeholder="Buscar..." value={fl.search} onChange={e=>setFl(f=>({...f,search:e.target.value}))} style={{width:"100%",padding:"7px 9px 7px 28px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:12,background:"#fafbfc",outline:"none",boxSizing:"border-box"}}/></div><select value={fl.marca} onChange={e=>setFl(f=>({...f,marca:e.target.value}))} style={{padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc"}}><option value="">Marcas</option>{marcas.map(m=><option key={m}>{m}</option>)}</select><select value={fl.estado} onChange={e=>setFl(f=>({...f,estado:e.target.value}))} style={{padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc"}}><option value="all">Todos</option>{EST_V.filter(e=>e!=="Vendido").map(e=><option key={e} value={e}>{e}</option>)}</select><select value={fl.sort} onChange={e=>setFl(f=>({...f,sort:e.target.value}))} style={{padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc"}}><option value="recent">Reciente</option><option value="price_asc">Precio ↑</option><option value="price_desc">Precio ↓</option><option value="km_asc">Km ↑</option><option value="km_desc">Km ↓</option><option value="year_desc">Año ↓</option><option value="year_asc">Año ↑</option></select><Btn variant="ghost" size="sm" onClick={()=>setSfl(!sfl)}>{sfl?"Menos":"Filtros"} <Ic.Down/></Btn></div>{sfl&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid #f3f4f6"}}><Inp label="$ mín" type="number" value={fl.precioMin} onChange={e=>setFl(f=>({...f,precioMin:e.target.value}))}/><Inp label="$ máx" type="number" value={fl.precioMax} onChange={e=>setFl(f=>({...f,precioMax:e.target.value}))}/><Inp label="Km mín" type="number" value={fl.kmMin} onChange={e=>setFl(f=>({...f,kmMin:e.target.value}))}/><Inp label="Km máx" type="number" value={fl.kmMax} onChange={e=>setFl(f=>({...f,kmMax:e.target.value}))}/><Inp label="Año ≥" type="number" value={fl.anioMin} onChange={e=>setFl(f=>({...f,anioMin:e.target.value}))}/><Inp label="Año ≤" type="number" value={fl.anioMax} onChange={e=>setFl(f=>({...f,anioMax:e.target.value}))}/><Sel label="Condición" value={fl.condicion} onChange={e=>setFl(f=>({...f,condicion:e.target.value}))} options={[{value:"",label:"Todas"},...COND]}/><Sel label="Ubicación" value={fl.ubicacion} onChange={e=>setFl(f=>({...f,ubicacion:e.target.value}))} options={[{value:"",label:"Todas"},...UBIC]}/><Sel label="Trans." value={fl.transmision} onChange={e=>setFl(f=>({...f,transmision:e.target.value}))} options={[{value:"",label:"Todas"},...TRANS]}/></div>}</Card>
     <div style={{fontSize:11,color:"#6b7280",marginBottom:8}}>{filt.length} vehículo{filt.length!==1?"s":""}</div>
     {filt.length>0?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12}}>{filt.map(v=><VCard key={v.id} vehicle={v} onView={setVv} onEdit={v=>{setEv(v);setSf(true);}} onDelete={del} pubCount={(data.publications||[]).filter(p=>p.vehiculoId===v.id&&p.estado==="activa").length}/>)}</div>:<Card style={{textAlign:"center",padding:36,color:"#9ca3af"}}><p style={{margin:0}}>Sin resultados.</p></Card>}
-    {sf&&<VForm vehicle={ev} allMarcas={allMarcas} onSave={save} onCancel={()=>{setSf(false);setEv(null);}} onAddMarca={addMarca}/>}
+    {sf&&<VForm vehicle={ev} allMarcas={allMarcas} onSave={save} onCancel={()=>{setSf(false);setEv(null);}} onAddMarca={addMarca} clients={data.clients}/>}
     {vv&&<VDetail vehicle={vv} onClose={()=>setVv(null)} onEdit={v=>{setVv(null);setEv(v);setSf(true);}} publications={data.publications} onPublish={publish} onUnpublish={unpub}/>}
   </div>);
 }
 
 /* ═══════ SOLD VEHICLES PAGE ═══════ */
 function SoldPage({data,setData,user}){
-  const [mes,setMes]=useState("");const [marca,setMarca]=useState("");const [search,setSearch]=useState("");const [vv,setVv]=useState(null);
+  const [mes,setMes]=useState("");const [marca,setMarca]=useState("");const [vendedorF,setVendedorF]=useState("");const [search,setSearch]=useState("");const [vv,setVv]=useState(null);
   const allSold=data.vehicles.filter(v=>v.vendido);
   const meses=[...new Set(allSold.map(v=>v.fechaVenta?.slice(0,7)).filter(Boolean))].sort().reverse();
   const marcasV=[...new Set(allSold.map(v=>v.marca).filter(Boolean))].sort();
+  const vendedores=[...new Set(allSold.map(v=>v.vendedor).filter(Boolean))].sort();
   const filt=allSold.filter(v=>{
     if(mes&&v.fechaVenta&&v.fechaVenta.slice(0,7)!==mes)return false;
     if(marca&&v.marca!==marca)return false;
-    if(search){const q=search.toLowerCase();if(![v.titulo,v.marca,v.modelo,v.patente].some(f=>(f||"").toLowerCase().includes(q)))return false;}
+    if(vendedorF&&v.vendedor!==vendedorF)return false;
+    if(search){const q=search.toLowerCase();if(![v.titulo,v.marca,v.modelo,v.patente,v.vendedor].some(f=>(f||"").toLowerCase().includes(q)))return false;}
     return true;
   });
   const tp=filt.reduce((s,v)=>s+cProfit(v).profit,0);
+  const getCliente=id=>data.clients.find(c=>c.id===Number(id));
+  // Vendedor stats
+  const vendedorStats={};allSold.forEach(v=>{if(v.vendedor){if(!vendedorStats[v.vendedor])vendedorStats[v.vendedor]={count:0,profit:0};vendedorStats[v.vendedor].count++;vendedorStats[v.vendedor].profit+=cProfit(v).profit;}});
+  const topVendedores=Object.entries(vendedorStats).sort((a,b)=>b[1].count-a[1].count);
   const downloadSoldPDF=(list)=>{
     const mesLabel=mes||"Todos";
-    const rows=list.map(v=>{const p=cProfit(v);return`<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;font-size:11px;">${v.titulo||v.marca+" "+v.modelo}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${v.marca}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${v.anio||"-"}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${v.transmision||"-"}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${fmtD(v.fechaVenta)}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${fmt$(v.precioCompra)}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;font-weight:700;color:#0284c7;">${fmt$(v.precioVenta)}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;font-weight:700;color:${p.profit>=0?"#16a34a":"#dc2626"};">${fmt$(p.profit)}</td></tr>`;}).join("");
-    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CheckCar - Vendidos</title><style>@page{size:landscape;margin:12mm;}body{font-family:Helvetica,Arial,sans-serif;color:#333;margin:0;padding:16px;}h1{color:#0284c7;font-size:20px;margin:0 0 4px;}p.sub{color:#6b7280;font-size:11px;margin:0 0 16px;}table{width:100%;border-collapse:collapse;}th{background:#16a34a;color:#fff;padding:8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;}tr:nth-child(even){background:#f9fafb;}.total{margin-top:16px;font-size:14px;font-weight:700;color:#111;}</style></head><body><h1>CheckCar — Vehículos Vendidos</h1><p class="sub">${new Date().toLocaleDateString("es-AR")} · Período: ${mesLabel} · ${list.length} vehículo(s) · Ganancia: ${fmt$(tp)}</p><table><thead><tr><th>Vehículo</th><th>Marca</th><th>Año</th><th>Trans.</th><th>Fecha venta</th><th>Compra</th><th>Venta</th><th>Ganancia</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+    const rows=list.map(v=>{const p=cProfit(v);const cli=getCliente(v.clienteVentaId);return`<tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:600;font-size:11px;">${v.titulo||v.marca+" "+v.modelo}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${v.marca}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${v.anio||"-"}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${fmtD(v.fechaVenta)}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${v.vendedor||"-"}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${cli?cli.nombre:"-"}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;">${fmt$(v.precioCompra)}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;font-weight:700;color:#0284c7;">${fmt$(v.precioVenta)}</td><td style="padding:8px;border-bottom:1px solid #eee;font-size:11px;font-weight:700;color:${p.profit>=0?"#16a34a":"#dc2626"};">${fmt$(p.profit)}</td></tr>`;}).join("");
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>CheckCar - Vendidos</title><style>@page{size:landscape;margin:12mm;}body{font-family:Helvetica,Arial,sans-serif;color:#333;margin:0;padding:16px;}h1{color:#0284c7;font-size:20px;margin:0 0 4px;}p.sub{color:#6b7280;font-size:11px;margin:0 0 16px;}table{width:100%;border-collapse:collapse;}th{background:#16a34a;color:#fff;padding:8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;}tr:nth-child(even){background:#f9fafb;}</style></head><body><h1>CheckCar — Vehículos Vendidos</h1><p class="sub">${new Date().toLocaleDateString("es-AR")} · Período: ${mesLabel}${vendedorF?" · Vendedor: "+vendedorF:""} · ${list.length} vehículo(s) · Ganancia: ${fmt$(tp)}</p><table><thead><tr><th>Vehículo</th><th>Marca</th><th>Año</th><th>Fecha</th><th>Vendedor</th><th>Cliente</th><th>Compra</th><th>Venta</th><th>Ganancia</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
     const w=window.open("","_blank");if(w){w.document.write(html);w.document.close();setTimeout(()=>w.print(),600);}
   };
   const selS={padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc",outline:"none"};
@@ -345,7 +356,7 @@ function SoldPage({data,setData,user}){
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
       <h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:0,letterSpacing:-.5}}>Vendidos</h1>
       <div style={{display:"flex",gap:6}}>
-        <Btn variant="secondary" size="sm" onClick={()=>{exportToExcel(filt,[{label:"Título",get:v=>v.titulo||`${v.marca} ${v.modelo}`},{label:"Marca",key:"marca"},{label:"Modelo",key:"modelo"},{label:"Año",key:"anio"},{label:"Fecha Venta",key:"fechaVenta"},{label:"Compra",key:"precioCompra"},{label:"Venta",key:"precioVenta"},{label:"Ganancia",get:v=>cProfit(v).profit},{label:"%",get:v=>cProfit(v).pct.toFixed(1)+"%"}],"checkcar-vendidos");}}><Ic.Download/> Excel</Btn>
+        <Btn variant="secondary" size="sm" onClick={()=>{exportToExcel(filt,[{label:"Título",get:v=>v.titulo||`${v.marca} ${v.modelo}`},{label:"Marca",key:"marca"},{label:"Modelo",key:"modelo"},{label:"Año",key:"anio"},{label:"Fecha Venta",key:"fechaVenta"},{label:"Vendedor",key:"vendedor"},{label:"Cliente",get:v=>{const c=getCliente(v.clienteVentaId);return c?c.nombre:"—";}},{label:"Compra",key:"precioCompra"},{label:"Venta",key:"precioVenta"},{label:"Ganancia",get:v=>cProfit(v).profit},{label:"%",get:v=>cProfit(v).pct.toFixed(1)+"%"}],"checkcar-vendidos");}}><Ic.Download/> Excel</Btn>
         <Btn variant="secondary" size="sm" onClick={()=>downloadSoldPDF(filt)}><Ic.Download/> PDF</Btn>
       </div>
     </div>
@@ -353,8 +364,9 @@ function SoldPage({data,setData,user}){
       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
         <select value={mes} onChange={e=>setMes(e.target.value)} style={selS}><option value="">Todos los meses</option>{meses.map(m=><option key={m} value={m}>{m}</option>)}</select>
         <select value={marca} onChange={e=>setMarca(e.target.value)} style={selS}><option value="">Todas las marcas</option>{marcasV.map(m=><option key={m}>{m}</option>)}</select>
+        <select value={vendedorF} onChange={e=>setVendedorF(e.target.value)} style={selS}><option value="">Todos los vendedores</option>{vendedores.map(v=><option key={v}>{v}</option>)}</select>
         <div style={{position:"relative",flex:1,minWidth:140}}><span style={{position:"absolute",left:7,top:"50%",transform:"translateY(-50%)",color:"#9ca3af"}}><Ic.Search/></span><input placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:"100%",padding:"7px 9px 7px 24px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc",outline:"none",boxSizing:"border-box"}}/></div>
-        {(mes||marca||search)&&<Btn variant="ghost" size="sm" onClick={()=>{setMes("");setMarca("");setSearch("");}}>Limpiar</Btn>}
+        {(mes||marca||vendedorF||search)&&<Btn variant="ghost" size="sm" onClick={()=>{setMes("");setMarca("");setVendedorF("");setSearch("");}}>Limpiar</Btn>}
       </div>
     </Card>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12,marginBottom:16}}>
@@ -362,7 +374,22 @@ function SoldPage({data,setData,user}){
       <StatCard label="Ganancia total" value={fmt$(tp)} icon={<Ic.Dollar/>} color="#0284c7"/>
       <StatCard label="Gan. promedio" value={fmt$(filt.length?tp/filt.length:0)} icon={<Ic.Chart/>} color="#f59e0b"/>
     </div>
-    {filt.length>0?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12}}>{filt.map(v=>{const p=cProfit(v);return(
+    {/* Ranking vendedores */}
+    {topVendedores.length>0&&<Card style={{marginBottom:16}}>
+      <h3 style={{fontSize:13,fontWeight:700,color:"#111827",margin:"0 0 10px"}}>Ranking de vendedores</h3>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:8}}>
+        {topVendedores.map(([name,st],i)=>(
+          <div key={name} onClick={()=>setVendedorF(vendedorF===name?"":name)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:8,border:vendedorF===name?"2px solid #0284c7":"1px solid #e5e7eb",background:vendedorF===name?"#f0f9ff":"#fff",cursor:"pointer",transition:"all .15s"}}>
+            <div style={{width:28,height:28,borderRadius:"50%",background:i===0?"#16a34a":i===1?"#0284c7":"#f59e0b",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,flexShrink:0}}>{i+1}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name}</div>
+              <div style={{fontSize:10,color:"#6b7280"}}>{st.count} venta{st.count>1?"s":""} · {fmt$(st.profit)} ganancia</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>}
+    {filt.length>0?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>{filt.map(v=>{const p=cProfit(v);const cli=getCliente(v.clienteVentaId);return(
       <Card key={v.id} style={{padding:0,overflow:"hidden"}}>
         <div onClick={()=>setVv(v)} style={{height:120,background:"#f3f4f6",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",cursor:"pointer"}}>{v.fotos?.length>0?<img src={v.fotos[0]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{color:"#d1d5db"}}><Ic.Cam/></div>}</div>
         <div style={{padding:11}}>
@@ -374,10 +401,12 @@ function SoldPage({data,setData,user}){
             <div style={{fontSize:15,fontWeight:700,color:"#0284c7"}}>{fmt$(v.precioVenta)}</div>
             <div style={{fontSize:12,fontWeight:700,color:p.profit>=0?"#16a34a":"#dc2626"}}>{fmt$(p.profit)} <span style={{fontSize:10}}>({p.pct.toFixed(1)}%)</span></div>
           </div>
-          {v.fechaIngreso&&v.fechaVenta&&<div style={{fontSize:10,color:"#6b7280",marginTop:3}}>{dDiff(v.fechaIngreso,v.fechaVenta)} días en stock</div>}
+          {v.vendedor&&<div style={{fontSize:10,color:"#374151",marginTop:4,display:"flex",alignItems:"center",gap:3}}><Ic.Users/> <span style={{fontWeight:600}}>{v.vendedor}</span></div>}
+          {cli&&<div style={{fontSize:10,color:"#0284c7",marginTop:2}}>Comprador: <span style={{fontWeight:600}}>{cli.nombre}</span>{cli.telefono?` · ${cli.telefono}`:""}</div>}
+          {v.fechaIngreso&&v.fechaVenta&&<div style={{fontSize:10,color:"#6b7280",marginTop:2}}>{dDiff(v.fechaIngreso,v.fechaVenta)} días en stock</div>}
         </div>
       </Card>
-    );})}</div>:<Card style={{textAlign:"center",padding:36,color:"#9ca3af"}}><p style={{margin:0}}>No hay vehículos vendidos{mes?" en este mes":""}.</p></Card>}
+    );})}</div>:<Card style={{textAlign:"center",padding:36,color:"#9ca3af"}}><p style={{margin:0}}>No hay vehículos vendidos{mes?" en este mes":""}{vendedorF?" por este vendedor":""}.</p></Card>}
     {vv&&<VDetail vehicle={vv} onClose={()=>setVv(null)} onEdit={()=>{}} publications={data.publications} onPublish={()=>{}} onUnpublish={()=>{}}/>}
   </div>);
 }
