@@ -1071,6 +1071,163 @@ ${row("Total de intereses",fmt$(interesTotal))}${row("Total en cuotas",fmt$(cuot
   </div>);
 }
 
+/* ═══════ CALCULADORA DE TRANSFERENCIA ═══════ */
+// Fuentes: DNRPA, La Nación 19/09/2024, elcerokm.com — tasas vigentes 2026
+const PROVINCIAS_TRANSFERENCIA=[
+  {name:"Buenos Aires (Prov.)",sellos:3.0},
+  {name:"CABA",sellos:3.0},
+  {name:"Santa Cruz",sellos:3.0},
+  {name:"Chubut",sellos:2.0},
+  {name:"Río Negro",sellos:2.0},
+  {name:"Jujuy",sellos:2.0},
+  {name:"Salta",sellos:2.0},
+  {name:"Misiones",sellos:2.0},
+  {name:"Chaco",sellos:1.8},
+  {name:"Córdoba",sellos:1.5},
+  {name:"Mendoza",sellos:1.5},
+  {name:"Neuquén",sellos:1.5},
+  {name:"La Pampa",sellos:1.5},
+  {name:"Entre Ríos",sellos:1.2},
+  {name:"Santa Fe",sellos:1.2},
+  {name:"Tucumán",sellos:1.0},
+  {name:"Catamarca",sellos:1.0},
+  {name:"Corrientes",sellos:1.0},
+  {name:"Santiago del Estero",sellos:1.0},
+  {name:"Tierra del Fuego",sellos:1.0},
+  {name:"La Rioja",sellos:0.7},
+  {name:"Formosa",sellos:0.7},
+  {name:"San Juan",sellos:0.5},
+  {name:"San Luis",sellos:0.5},
+];
+
+// Gastos fijos DNRPA 2026
+const GASTOS_FIJOS=[
+  {label:"Formulario 08",monto:6120},
+  {label:"Formulario 13",monto:4068},
+  {label:"Alta impositiva",monto:3490},
+  {label:"Libre deuda",monto:3390},
+];
+const TOTAL_FIJOS=GASTOS_FIJOS.reduce((s,g)=>s+g.monto,0); // $17.068
+
+function TransferenciaPage(){
+  const [valor,setValor]=useState("");
+  const [provincia,setProvincia]=useState("");
+  const [origen,setOrigen]=useState("nacional");
+  const [calculado,setCalculado]=useState(false);
+
+  const base=+(valor)||0;
+  const prov=PROVINCIAS_TRANSFERENCIA.find(p=>p.name===provincia);
+
+  const arancelDNRPA=base>0?Math.round(base*0.01):0;
+  const impSellos=base>0&&prov?Math.round(base*prov.sellos/100):0;
+  const total=arancelDNRPA+TOTAL_FIJOS+impSellos;
+
+  const calcular=()=>{if(base>0&&provincia)setCalculado(true);};
+  const limpiar=()=>{setValor("");setProvincia("");setOrigen("nacional");setCalculado(false);};
+
+  const FilaDetalle=({label,sub,monto,highlight})=>(
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:highlight?"#f0f9ff":"#f9fafb",borderRadius:8,border:highlight?"1px solid #bae6fd":"none"}}>
+      <div>
+        <div style={{fontSize:13,fontWeight:600,color:"#374151"}}>{label}</div>
+        {sub&&<div style={{fontSize:11,color:"#9ca3af"}}>{sub}</div>}
+      </div>
+      <span style={{fontSize:14,fontWeight:700,color:highlight?"#0284c7":"#111827"}}>{fmt$(monto)}</span>
+    </div>
+  );
+
+  return(<div style={{maxWidth:680}}>
+    <h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:"0 0 6px",letterSpacing:-.5}}>Calculadora de Transferencia</h1>
+    <p style={{fontSize:13,color:"#6b7280",margin:"0 0 22px"}}>Estimá el costo total de la transferencia de un vehículo usado en Argentina. Tasas DNRPA vigentes 2026.</p>
+
+    <Card style={{marginBottom:16}}>
+      <Sec>Datos del vehículo</Sec>
+      <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:10}}>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#4b5563",display:"block",marginBottom:3}}>Valor del vehículo ($)</label>
+          <input
+            type="number"
+            placeholder="Ingresá el valor según DNRPA / tabla de valuación"
+            value={valor}
+            onChange={e=>{setValor(e.target.value);setCalculado(false);}}
+            style={{width:"100%",padding:"10px 12px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:14,background:"#fafbfc",color:"#1f2937",outline:"none",boxSizing:"border-box",fontWeight:600}}
+            onFocus={e=>e.target.style.borderColor="#0ea5e9"}
+            onBlur={e=>e.target.style.borderColor="#e5e7eb"}
+          />
+          <span style={{fontSize:10,color:"#9ca3af",marginTop:3,display:"block"}}>Consultá la valuación actualizada en dnrpa.gov.ar</span>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Sel label="Provincia de radicación" value={provincia} onChange={e=>{setProvincia(e.target.value);setCalculado(false);}} options={[{value:"",label:"Seleccioná la provincia..."},...PROVINCIAS_TRANSFERENCIA.map(p=>({value:p.name,label:`${p.name} (${p.sellos}%)`}))]}/>
+          <Sel label="Origen del vehículo" value={origen} onChange={e=>setOrigen(e.target.value)} options={[{value:"nacional",label:"Nacional"},{value:"importado",label:"Importado"}]}/>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={calcular} disabled={!base||!provincia} style={{flex:1,padding:"11px 0",background:(!base||!provincia)?"#e5e7eb":"#0284c7",color:(!base||!provincia)?"#9ca3af":"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:(!base||!provincia)?"not-allowed":"pointer",fontFamily:"inherit",transition:"all .15s"}}>
+            Calcular
+          </button>
+          {calculado&&<button onClick={limpiar} style={{padding:"11px 18px",background:"#f3f4f6",color:"#374151",border:"none",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Limpiar</button>}
+        </div>
+      </div>
+    </Card>
+
+    {calculado&&base>0&&prov&&<Card>
+      <Sec>Detalle de costos — {prov.name}</Sec>
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:10}}>
+
+        {/* Arancel DNRPA */}
+        <div style={{fontSize:11,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:.5,padding:"4px 4px 2px"}}>Arancel Nacional DNRPA</div>
+        <FilaDetalle label="Arancel de transferencia (1%)" sub={`1% sobre ${fmt$(base)}`} monto={arancelDNRPA} highlight/>
+
+        {/* Gastos fijos */}
+        <div style={{fontSize:11,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:.5,padding:"12px 4px 2px"}}>Gastos administrativos fijos</div>
+        {GASTOS_FIJOS.map(g=><FilaDetalle key={g.label} label={g.label} monto={g.monto}/>)}
+        <div style={{display:"flex",justifyContent:"space-between",padding:"6px 14px",fontSize:12,color:"#6b7280"}}>
+          <span>Subtotal gastos fijos</span>
+          <span style={{fontWeight:600}}>{fmt$(TOTAL_FIJOS)}</span>
+        </div>
+
+        {/* Impuesto de sellos */}
+        <div style={{fontSize:11,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:.5,padding:"12px 4px 2px"}}>Impuesto provincial</div>
+        <FilaDetalle label={`Impuesto de sellos — ${prov.name}`} sub={`${prov.sellos}% sobre ${fmt$(base)}`} monto={impSellos} highlight/>
+
+        {/* Separador y total */}
+        <div style={{borderTop:"2px solid #111827",marginTop:8,paddingTop:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#111827",borderRadius:10}}>
+            <div>
+              <div style={{fontSize:13,color:"#d1d5db",fontWeight:600}}>Total estimado</div>
+              <div style={{fontSize:11,color:"#6b7280",marginTop:1}}>Vehículo {origen} · {prov.name} · {prov.sellos}% sellos</div>
+            </div>
+            <span style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-.5}}>{fmt$(total)}</span>
+          </div>
+        </div>
+
+        <div style={{marginTop:8,padding:"8px 12px",background:"#fefce8",border:"1px solid #fde68a",borderRadius:8,fontSize:11,color:"#92400e",lineHeight:1.6}}>
+          ⚠ Estimación basada en aranceles DNRPA 2026. No incluye honorarios de gestor ni verificación policial. Los valores pueden variar según el registro automotor y cambios de normativa.
+        </div>
+      </div>
+
+      {/* Tabla comparativa de sellos */}
+      <div style={{marginTop:20}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}}>Impuesto de sellos por provincia (referencia)</div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+            <thead><tr style={{background:"#f8fafc"}}>
+              <th style={{padding:"6px 10px",textAlign:"left",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Provincia</th>
+              <th style={{padding:"6px 10px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Sellos</th>
+              <th style={{padding:"6px 10px",textAlign:"right",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Para este vehículo</th>
+            </tr></thead>
+            <tbody>{PROVINCIAS_TRANSFERENCIA.map((p,i)=>(
+              <tr key={p.name} style={{background:p.name===provincia?"#f0f9ff":i%2===0?"#fff":"#f9fafb",borderBottom:"1px solid #f3f4f6"}}>
+                <td style={{padding:"5px 10px",fontWeight:p.name===provincia?700:400,color:p.name===provincia?"#0284c7":"#374151"}}>{p.name}{p.name===provincia&&" ✓"}</td>
+                <td style={{padding:"5px 10px",textAlign:"center",fontWeight:600,color:p.sellos>=2.5?"#dc2626":p.sellos>=1.5?"#d97706":p.sellos>=1?"#374151":"#16a34a"}}>{p.sellos}%</td>
+                <td style={{padding:"5px 10px",textAlign:"right",color:"#6b7280"}}>{fmt$(Math.round(base*p.sellos/100))}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      </div>
+    </Card>}
+  </div>);
+}
+
 /* ═══════ MAIN APP ═══════ */
 export default function App(){
   const [data,setDR]=useState(INIT);const [page,setPage]=useState("dashboard");const [loaded,setLoaded]=useState(false);const [user,setUser]=useState(null);
@@ -1083,7 +1240,7 @@ export default function App(){
   const allMarcas=useMemo(()=>[...new Set([...DEF_MARCAS,...(data.customMarcas||[])])].sort(),[data.customMarcas]);
   const addMarca=useCallback(m=>{if(!m||allMarcas.includes(m))return;setData({...data,customMarcas:[...(data.customMarcas||[]),m]});},[data,allMarcas,setData]);
   const handleLogout=()=>{if(hasAPI){localStorage.removeItem('checkcar_token');localStorage.removeItem('checkcar_user');localStorage.removeItem('checkcar_tenant');}setUser(null);};
-  const nav=[{id:"dashboard",label:"Dashboard",icon:<Ic.Home/>},{id:"vehicles",label:"Catálogo",icon:<Ic.Car/>},{id:"sold",label:"Vendidos",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"sales",label:"Ventas",icon:<Ic.Chart/>},{id:"clients",label:"Clientes",icon:<Ic.Users/>},{id:"publications",label:"Publicaciones",icon:<Ic.Globe/>},{id:"activity",label:"Actividad",icon:<Ic.Log/>},{id:"calculadora",label:"Calculadora Patentes",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4" strokeLinecap="round"/></svg>},{id:"cotizador",label:"Cotizador",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"simulador",label:"Simulador Financ.",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8v1m0 10v1M8 12H4m16 0h-4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="9"/></svg>}];
+  const nav=[{id:"dashboard",label:"Dashboard",icon:<Ic.Home/>},{id:"vehicles",label:"Catálogo",icon:<Ic.Car/>},{id:"sold",label:"Vendidos",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"sales",label:"Ventas",icon:<Ic.Chart/>},{id:"clients",label:"Clientes",icon:<Ic.Users/>},{id:"publications",label:"Publicaciones",icon:<Ic.Globe/>},{id:"activity",label:"Actividad",icon:<Ic.Log/>},{id:"calculadora",label:"Calculadora Patentes",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4" strokeLinecap="round"/></svg>},{id:"cotizador",label:"Cotizador",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"simulador",label:"Simulador Financ.",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8v1m0 10v1M8 12H4m16 0h-4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="9"/></svg>},{id:"transferencia",label:"Transferencia",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-3-3v6M5 8l2-2m10 0l2 2M5 16l2 2m10 0l2-2M3 12a9 9 0 1018 0 9 9 0 00-18 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>}];
   if(!loaded)return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#fff",fontFamily:"'DM Sans',system-ui,sans-serif"}}><div style={{color:"#6b7280"}}>Cargando...</div></div>;
   if(!user)return <Login users={data.users} onLogin={setUser}/>;
   const alerts=data.vehicles.filter(v=>!v.vendido&&v.fechaIngreso&&dDiff(v.fechaIngreso,td())>=ALERT_DAYS);
@@ -1106,6 +1263,7 @@ export default function App(){
       {page==="calculadora"&&<CalcPatentePage/>}
       {page==="cotizador"&&<CotizadorPage/>}
       {page==="simulador"&&<SimuladorPage/>}
+      {page==="transferencia"&&<TransferenciaPage/>}
     </main>
   </div>);
 }
