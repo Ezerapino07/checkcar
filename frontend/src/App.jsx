@@ -1120,7 +1120,9 @@ function TransferenciaPage(){
 
   const arancelDNRPA=base>0?Math.round(base*0.01):0;
   const impSellos=base>0&&prov?Math.round(base*prov.sellos/100):0;
-  const total=arancelDNRPA+TOTAL_FIJOS+impSellos;
+  const honorariosRegistro=base>0?Math.round(base*0.016):0;
+  const arancelesProvinciales=impSellos+honorariosRegistro;
+  const total=arancelDNRPA+TOTAL_FIJOS+arancelesProvinciales;
 
   const calcular=()=>{if(base>0&&provincia)setCalculado(true);};
   const limpiar=()=>{setValor("");setProvincia("");setOrigen("nacional");setCalculado(false);};
@@ -1184,23 +1186,28 @@ function TransferenciaPage(){
           <span style={{fontWeight:600}}>{fmt$(TOTAL_FIJOS)}</span>
         </div>
 
-        {/* Impuesto de sellos */}
-        <div style={{fontSize:11,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:.5,padding:"12px 4px 2px"}}>Impuesto provincial</div>
-        <FilaDetalle label={`Impuesto de sellos — ${prov.name}`} sub={`${prov.sellos}% sobre ${fmt$(base)}`} monto={impSellos} highlight/>
+        {/* Impuesto de sellos + honorarios */}
+        <div style={{fontSize:11,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:.5,padding:"12px 4px 2px"}}>Aranceles provinciales — {prov.name}</div>
+        <FilaDetalle label={`Impuesto de sellos`} sub={`${prov.sellos}% sobre ${fmt$(base)}`} monto={impSellos}/>
+        <FilaDetalle label="Honorarios del registro automotor" sub={`1.6% sobre ${fmt$(base)}`} monto={honorariosRegistro}/>
+        <div style={{display:"flex",justifyContent:"space-between",padding:"6px 14px",fontSize:12,color:"#6b7280"}}>
+          <span>Subtotal aranceles provinciales</span>
+          <span style={{fontWeight:600}}>{fmt$(arancelesProvinciales)}</span>
+        </div>
 
         {/* Separador y total */}
         <div style={{borderTop:"2px solid #111827",marginTop:8,paddingTop:10}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#111827",borderRadius:10}}>
             <div>
               <div style={{fontSize:13,color:"#d1d5db",fontWeight:600}}>Total estimado</div>
-              <div style={{fontSize:11,color:"#6b7280",marginTop:1}}>Vehículo {origen} · {prov.name} · {prov.sellos}% sellos</div>
+              <div style={{fontSize:11,color:"#6b7280",marginTop:1}}>Vehículo {origen} · {prov.name} · {prov.sellos}% sellos + 1.6% honorarios</div>
             </div>
             <span style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-.5}}>{fmt$(total)}</span>
           </div>
         </div>
 
         <div style={{marginTop:8,padding:"8px 12px",background:"#fefce8",border:"1px solid #fde68a",borderRadius:8,fontSize:11,color:"#92400e",lineHeight:1.6}}>
-          ⚠ Estimación basada en aranceles DNRPA 2026. No incluye honorarios de gestor ni verificación policial. Los valores pueden variar según el registro automotor y cambios de normativa.
+          ⚠ Estimación basada en aranceles DNRPA 2026. Incluye honorarios del registro automotor (1.6%). No incluye honorarios de gestor particular ni verificación policial. Los valores pueden variar según el registro automotor y cambios de normativa.
         </div>
       </div>
 
@@ -1212,13 +1219,13 @@ function TransferenciaPage(){
             <thead><tr style={{background:"#f8fafc"}}>
               <th style={{padding:"6px 10px",textAlign:"left",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Provincia</th>
               <th style={{padding:"6px 10px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Sellos</th>
-              <th style={{padding:"6px 10px",textAlign:"right",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Para este vehículo</th>
+              <th style={{padding:"6px 10px",textAlign:"right",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Aranceles prov. (sellos+honorarios)</th>
             </tr></thead>
             <tbody>{PROVINCIAS_TRANSFERENCIA.map((p,i)=>(
               <tr key={p.name} style={{background:p.name===provincia?"#f0f9ff":i%2===0?"#fff":"#f9fafb",borderBottom:"1px solid #f3f4f6"}}>
                 <td style={{padding:"5px 10px",fontWeight:p.name===provincia?700:400,color:p.name===provincia?"#0284c7":"#374151"}}>{p.name}{p.name===provincia&&" ✓"}</td>
                 <td style={{padding:"5px 10px",textAlign:"center",fontWeight:600,color:p.sellos>=2.5?"#dc2626":p.sellos>=1.5?"#d97706":p.sellos>=1?"#374151":"#16a34a"}}>{p.sellos}%</td>
-                <td style={{padding:"5px 10px",textAlign:"right",color:"#6b7280"}}>{fmt$(Math.round(base*p.sellos/100))}</td>
+                <td style={{padding:"5px 10px",textAlign:"right",color:"#6b7280"}}>{fmt$(Math.round(base*p.sellos/100)+Math.round(base*0.016))}</td>
               </tr>
             ))}</tbody>
           </table>
