@@ -597,7 +597,13 @@ function UserManager({user,data,setData}){
 
 /* ═══════ CALCULADORA DE PATENTES ═══════ */
 const PROVINCIAS_PATENTE=[
-  {name:"Buenos Aires (Prov.)",tramos:[{maxAge:3,rate:3.0},{maxAge:6,rate:2.5},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores (ARBA)"},
+  {name:"Buenos Aires (Prov.)",escalas:[
+    {max:14100000,fixed:0,rate:1.0,base:0},
+    {max:18700000,fixed:141000,rate:2.0,base:14100000},
+    {max:26100000,fixed:233000,rate:3.0,base:18700000},
+    {max:53900000,fixed:455000,rate:4.0,base:26100000},
+    {max:Infinity,fixed:1567000,rate:4.5,base:53900000},
+  ],cuotas:10,descuentoAnual:15,nota:"ARBA 2026 — Escala progresiva por valuación fiscal"},
   {name:"CABA",tramos:[{maxAge:1,rate:3.5},{maxAge:5,rate:2.5},{maxAge:10,rate:1.5},{maxAge:Infinity,rate:0.75}],cuotas:5,nota:"Patente Anual de Radicación"},
   {name:"Córdoba",tramos:[{maxAge:5,rate:3.0},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores"},
   {name:"Santa Fe",tramos:[{maxAge:5,rate:3.0},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.0}],cuotas:5,nota:"Impuesto Provincial de Automotores"},
@@ -629,13 +635,19 @@ function CalcPatentePage(){
   const [anioVeh,setAnioVeh]=useState(String(anioActual));
 
   const prov=PROVINCIAS_PATENTE.find(p=>p.name===provincia);
-  const edad=prov?anioActual-(+anioVeh||anioActual):null;
-  const tramo=prov?prov.tramos.find(t=>edad<=t.maxAge):null;
+  const usaEscala=!!(prov?.escalas);
+  const base=+(valuacion)||0;
+  const edad=(!usaEscala&&prov)?anioActual-(+anioVeh||anioActual):null;
+  const tramo=(!usaEscala&&prov&&edad!==null)?prov.tramos.find(t=>edad<=t.maxAge):null;
   const rate=tramo?tramo.rate:null;
-  const base=+(valuacion.replace(/\./g,"").replace(",","."))||0;
-  const anual=base&&rate?(base*rate/100):null;
+  const escalaActiva=usaEscala&&base>0?prov.escalas.find(e=>base<=e.max):null;
+  let anual=null;
+  if(base&&prov){
+    if(usaEscala&&escalaActiva) anual=escalaActiva.fixed+(base-escalaActiva.base)*escalaActiva.rate/100;
+    else if(!usaEscala&&rate) anual=base*rate/100;
+  }
   const cuota=anual&&prov?anual/prov.cuotas:null;
-
+  const anualDescuento=anual&&prov?.descuentoAnual?anual*(1-prov.descuentoAnual/100):null;
   const aniosOpt=Array.from({length:40},(_,i)=>String(anioActual-i));
 
   return(<div>
@@ -646,7 +658,7 @@ function CalcPatentePage(){
         <Sec>Datos del vehículo</Sec>
         <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
           <Sel label="Provincia" value={provincia} onChange={e=>setProvincia(e.target.value)} options={[{value:"",label:"Seleccioná una provincia..."},...PROVINCIAS_PATENTE.map(p=>({value:p.name,label:p.name}))]}/>
-          <Sel label="Año del vehículo" value={anioVeh} onChange={e=>setAnioVeh(e.target.value)} options={aniosOpt}/>
+          {!usaEscala&&<Sel label="Año del vehículo" value={anioVeh} onChange={e=>setAnioVeh(e.target.value)} options={aniosOpt}/>}
           <div style={{display:"flex",flexDirection:"column",gap:3}}>
             <label style={{fontSize:11,fontWeight:600,color:"#4b5563"}}>Valuación fiscal ($)</label>
             <input
@@ -667,18 +679,25 @@ function CalcPatentePage(){
         <Sec>Resultado estimado</Sec>
         {(!provincia||!base)?
           <div style={{textAlign:"center",padding:"32px 0",color:"#9ca3af",fontSize:13}}>Completá los datos para calcular</div>
-        :rate===null?
-          <div style={{textAlign:"center",padding:"32px 0",color:"#ef4444",fontSize:13}}>Provincia no disponible</div>
+        :!anual?
+          <div style={{textAlign:"center",padding:"32px 0",color:"#ef4444",fontSize:13}}>Datos insuficientes o provincia no disponible</div>
         :<div style={{marginTop:8}}>
           <div style={{padding:"10px 14px",background:"#f0f9ff",borderRadius:8,marginBottom:10,fontSize:12,color:"#0369a1"}}>
             <strong>{prov.name}</strong>{prov.nota&&<span style={{color:"#6b7280"}}> · {prov.nota}</span>}<br/>
-            Antigüedad: <strong>{edad===0?"0km / nuevo":edad===1?"1 año":`${edad} años`}</strong> · Alícuota: <strong style={{color:"#0284c7"}}>{rate}%</strong>
+            {usaEscala
+              ?<>Tramo aplicado: <strong style={{color:"#0284c7"}}>{escalaActiva.rate}%</strong> sobre excedente{escalaActiva.fixed>0?<> + fijo <strong>{fmt$(escalaActiva.fixed)}</strong></>:""}</>
+              :<>Antigüedad: <strong>{edad===0?"0km / nuevo":edad===1?"1 año":`${edad} años`}</strong> · Alícuota: <strong style={{color:"#0284c7"}}>{rate}%</strong></>
+            }
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:"#f9fafb",borderRadius:8}}>
               <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Impuesto anual</span>
               <span style={{fontSize:18,fontWeight:800,color:"#111827",letterSpacing:-.5}}>{fmt$(anual)}</span>
             </div>
+            {anualDescuento&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#f0fdf4",borderRadius:8,border:"1px solid #bbf7d0"}}>
+              <span style={{fontSize:12,color:"#16a34a",fontWeight:600}}>Pago anual ({prov.descuentoAnual}% desc.)</span>
+              <span style={{fontSize:15,fontWeight:700,color:"#16a34a"}}>{fmt$(anualDescuento)}</span>
+            </div>}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#f9fafb",borderRadius:8}}>
               <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Por cuota ({prov.cuotas} cuotas)</span>
               <span style={{fontSize:16,fontWeight:700,color:"#0284c7"}}>{fmt$(cuota)}</span>
@@ -696,20 +715,46 @@ function CalcPatentePage(){
     </div>
 
     <Card style={{marginTop:20,maxWidth:780}}>
+      <Sec>Escalas ARBA 2026 — Buenos Aires (Prov.)</Sec>
+      <div style={{overflowX:"auto",marginTop:8}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead><tr style={{background:"#f8fafc"}}>
+            <th style={{padding:"8px 12px",textAlign:"left",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Valuación fiscal</th>
+            <th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Monto fijo</th>
+            <th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Alícuota sobre excedente</th>
+          </tr></thead>
+          <tbody>{PROVINCIAS_PATENTE[0].escalas.map((e,i)=>(
+            <tr key={i} style={{background:i%2===0?"#fff":"#f9fafb",borderBottom:"1px solid #f3f4f6"}}>
+              <td style={{padding:"7px 12px",color:"#374151"}}>{fmt$(e.base)} {e.max!==Infinity?`→ ${fmt$(e.max)}`:"en adelante"}</td>
+              <td style={{padding:"7px 12px",textAlign:"center",color:"#6b7280"}}>{e.fixed>0?fmt$(e.fixed):"—"}</td>
+              <td style={{padding:"7px 12px",textAlign:"center",fontWeight:700,color:"#0284c7"}}>{e.rate}%</td>
+            </tr>
+          ))}</tbody>
+        </table>
+        <p style={{fontSize:11,color:"#6b7280",margin:"8px 0 0"}}>10 cuotas mensuales · 15% de descuento pagando el año completo en marzo</p>
+      </div>
+    </Card>
+
+    <Card style={{marginTop:20,maxWidth:780}}>
       <Sec>Alícuotas por provincia (referencia)</Sec>
       <div style={{overflowX:"auto",marginTop:8}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead><tr style={{background:"#f8fafc"}}><th style={{padding:"8px 12px",textAlign:"left",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Provincia</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>0-5 años</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>6-10 años</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>+10 años</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Cuotas</th></tr></thead>
           <tbody>{PROVINCIAS_PATENTE.map((p,i)=>{
+            if(p.escalas)return(<tr key={p.name} style={{background:i%2===0?"#fff":"#f9fafb",borderBottom:"1px solid #f3f4f6"}}>
+              <td style={{padding:"7px 12px",fontWeight:600,color:"#111827"}}>{p.name}</td>
+              <td colSpan={3} style={{padding:"7px 12px",textAlign:"center",color:"#0284c7",fontWeight:600}}>Escala progresiva 1% – 4,5%</td>
+              <td style={{padding:"7px 12px",textAlign:"center",color:"#6b7280"}}>{p.cuotas}</td>
+            </tr>);
             const r0=p.tramos.find(t=>3<=t.maxAge||t.maxAge===Infinity)?.rate;
             const r6=p.tramos.find(t=>t.maxAge>=8&&t.maxAge<Infinity)?.rate||(p.tramos[p.tramos.length-1]?.rate);
             const r10=p.tramos[p.tramos.length-1]?.rate;
-            const fmt=r=>`${r}%`;
+            const fmtR=r=>`${r}%`;
             return(<tr key={p.name} style={{background:i%2===0?"#fff":"#f9fafb",borderBottom:"1px solid #f3f4f6"}}>
               <td style={{padding:"7px 12px",fontWeight:600,color:"#111827"}}>{p.name}</td>
-              <td style={{padding:"7px 12px",textAlign:"center",color:"#dc2626",fontWeight:600}}>{fmt(r0)}</td>
-              <td style={{padding:"7px 12px",textAlign:"center",color:"#d97706",fontWeight:600}}>{fmt(r6)}</td>
-              <td style={{padding:"7px 12px",textAlign:"center",color:"#16a34a",fontWeight:600}}>{fmt(r10)}</td>
+              <td style={{padding:"7px 12px",textAlign:"center",color:"#dc2626",fontWeight:600}}>{fmtR(r0)}</td>
+              <td style={{padding:"7px 12px",textAlign:"center",color:"#d97706",fontWeight:600}}>{fmtR(r6)}</td>
+              <td style={{padding:"7px 12px",textAlign:"center",color:"#16a34a",fontWeight:600}}>{fmtR(r10)}</td>
               <td style={{padding:"7px 12px",textAlign:"center",color:"#6b7280"}}>{p.cuotas}</td>
             </tr>);
           })}</tbody>
