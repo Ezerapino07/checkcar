@@ -794,8 +794,8 @@ function CotizadorPage(){
     setLoading(true);setError("");
     try{
       const q=encodeURIComponent(`${marca} ${modelo} ${anio}`);
-      const res=await fetch(`https://api.mercadolibre.com/sites/MLA/search?q=${q}&limit=50`);
-      if(!res.ok)throw new Error(`Error ${res.status} al consultar MercadoLibre`);
+      const res=await fetch(`/api/cotizar?q=${q}`);
+      if(!res.ok)throw new Error(`Error ${res.status} al consultar precios`);
       const data=await res.json();
       // Filtrar solo resultados con precios coherentes con autos usados (>3M ARS)
       const precios=data.results.filter(r=>r.price>3000000).map(r=>r.price).sort((a,b)=>a-b);
