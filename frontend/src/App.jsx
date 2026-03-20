@@ -916,6 +916,156 @@ function CotizadorPage(){
   </div>);
 }
 
+/* ═══════ SIMULADOR DE FINANCIACIÓN ═══════ */
+function SimuladorPage(){
+  const anioActual=new Date().getFullYear();
+  const aniosOpt=Array.from({length:anioActual-1990+1},(_,i)=>String(anioActual-i));
+
+  const [vMarca,setVMarca]=useState("");const [vModelo,setVModelo]=useState("");const [vAnio,setVAnio]=useState("");const [vVersion,setVVersion]=useState("");
+  const [precio,setPrecio]=useState("");const [anticipo,setAnticipo]=useState("");
+  const [ncuotas,setNcuotas]=useState("24");const [tna,setTna]=useState("");
+  const [quebranto,setQuebranto]=useState("");const [conPrenda,setConPrenda]=useState(false);
+
+  const pn=v=>+(v||"").replace(/\./g,"").replace(",",".")||0;
+  const precioN=pn(precio);const anticipoN=pn(anticipo);const quebrantoN=pn(quebranto);
+  const tnaNum=+(tna||"").replace(",",".")||0;const n=+ncuotas;
+
+  const prendaAmt=conPrenda?Math.round(precioN*0.03):0;
+  const capital=Math.max(0,precioN-anticipoN+prendaAmt);
+  const tem=tnaNum/100/12;
+
+  let cuotaBase=0,cuotaTotal=0,totalAPagar=0,interesTotal=0,cftna=tnaNum;
+  const canShow=capital>0&&n>0&&tnaNum>0;
+  if(canShow){
+    cuotaBase=Math.round(tem===0?capital/n:capital*tem/(1-Math.pow(1+tem,-n)));
+    cuotaTotal=Math.round(cuotaBase+quebrantoN);
+    totalAPagar=Math.round(cuotaTotal*n+anticipoN);
+    interesTotal=Math.round(cuotaTotal*n-capital);
+    // CFTNA via bisección IRR (incluye quebranto en el flujo de pagos)
+    if(quebrantoN>0){
+      let lo=0.0001,hi=2,mid=tem;
+      for(let i=0;i<200;i++){mid=(lo+hi)/2;const pv=cuotaTotal*(1-Math.pow(1+mid,-n))/mid;if(pv>capital)lo=mid;else hi=mid;}
+      cftna=mid*12*100;
+    } else cftna=tnaNum;
+  }
+
+  const descargarPDF=()=>{
+    if(!canShow)return;
+    const conc=(hasAPI&&localStorage.getItem('checkcar_tenant'))?JSON.parse(localStorage.getItem('checkcar_tenant')).nombre:"CheckCar";
+    const veh=[vMarca,vModelo,vAnio,vVersion].filter(Boolean).join(" ")||"—";
+    const fecha=new Date().toLocaleDateString("es-AR",{day:"2-digit",month:"2-digit",year:"numeric"});
+    const row=(l,v,cls="")=>`<tr class="${cls}"><td class="lbl">${l}</td><td class="val">${v}</td></tr>`;
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Simulación — ${conc}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:32px;color:#1a1a1a;font-size:13px}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0284c7;padding-bottom:14px;margin-bottom:22px}
+.logo{font-size:22px;font-weight:900;color:#0284c7;letter-spacing:-.5px}.sub{font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.fecha{font-size:11px;color:#9ca3af;text-align:right}h2{font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:18px 0 8px}
+table{width:100%;border-collapse:collapse;margin-bottom:6px}td{padding:6px 10px;font-size:12px}tr:nth-child(even) td{background:#f9fafb}
+.lbl{color:#6b7280;width:58%}.val{color:#111827;font-weight:700;text-align:right}
+.cuota td{background:#f0f9ff!important;font-size:15px;color:#0284c7!important}
+.total td{background:#111827!important;color:#fff!important;font-weight:700;font-size:14px}
+.nota{margin-top:24px;padding:10px 14px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;line-height:1.6}
+@media print{body{padding:16px}}</style></head><body>
+<div class="hdr"><div><div class="logo">${conc}</div><div class="sub">Simulación de Financiación</div></div><div class="fecha">Fecha: ${fecha}</div></div>
+<h2>Vehículo</h2><table>${row("Vehículo",veh)}${row("Precio de venta",fmt$(precioN))}</table>
+<h2>Condiciones</h2><table>
+${row("Anticipo",fmt$(anticipoN))}${row("Capital a financiar",fmt$(capital))}
+${conPrenda?row("Costo de prenda (3%)",fmt$(prendaAmt)):""}
+${quebrantoN?row("Quebranto / Gastos adm.",fmt$(quebrantoN)+" / cuota"):""}
+${row("TNA",tnaNum.toFixed(2)+"%")}${row("CFTNA",cftna.toFixed(2)+"%")}
+${row("Plazo",n+" cuotas mensuales")}</table>
+<h2>Resultado</h2><table>
+<tr class="cuota"><td class="lbl" style="font-weight:700">Valor de cada cuota</td><td class="val" style="font-size:18px">${fmt$(cuotaTotal)}</td></tr>
+${row("Total de intereses",fmt$(interesTotal))}${row("Total en cuotas",fmt$(cuotaTotal*n))}
+<tr class="total"><td class="lbl">Total a pagar (anticipo + cuotas)</td><td class="val">${fmt$(totalAPagar)}</td></tr></table>
+<div class="nota">(*) Simulación de carácter informativo. No constituye oferta formal de crédito. Valores sujetos a condiciones de mercado, perfil crediticio y normativa BCRA vigente.</div>
+</body></html>`;
+    const win=window.open("","_blank","width=820,height=720");win.document.write(html);win.document.close();setTimeout(()=>win.print(),400);
+  };
+
+  const Row=({label,value,sub,yellow,dark})=>(
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:yellow?"#fefce8":dark?"#111827":"#f9fafb",borderRadius:7,border:yellow?"1px solid #fde68a":"none"}}>
+      <div><div style={{fontSize:11,color:dark?"#d1d5db":"#6b7280",fontWeight:600}}>{label}</div>{sub&&<div style={{fontSize:10,color:"#9ca3af"}}>{sub}</div>}</div>
+      <span style={{fontSize:13,fontWeight:700,color:yellow?"#92400e":dark?"#fff":"#111827"}}>{value}</span>
+    </div>
+  );
+
+  return(<div>
+    <h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:"0 0 6px",letterSpacing:-.5}}>Simulador de Financiación</h1>
+    <p style={{fontSize:13,color:"#6b7280",margin:"0 0 22px"}}>Simulá las condiciones de financiación y generá el resumen en PDF para el cliente.</p>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,maxWidth:920}}>
+
+      {/* Columna izquierda — inputs */}
+      <div style={{display:"flex",flexDirection:"column",gap:16}}>
+        <Card>
+          <Sec>Datos del vehículo (para el PDF)</Sec>
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
+            <Sel label="Marca" value={vMarca} onChange={e=>setVMarca(e.target.value)} options={[{value:"",label:"Marca..."},...DEF_MARCAS.map(m=>({value:m,label:m}))]}/>
+            <Inp label="Modelo" placeholder="Ej: Corolla, Palio..." value={vModelo} onChange={e=>setVModelo(e.target.value)}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <Sel label="Año" value={vAnio} onChange={e=>setVAnio(e.target.value)} options={[{value:"",label:"Año..."},...aniosOpt]}/>
+              <Inp label="Versión" placeholder="Opcional" value={vVersion} onChange={e=>setVVersion(e.target.value)}/>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <Sec>Condiciones de financiación</Sec>
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
+            <Inp label="Precio total del vehículo ($)" type="number" placeholder="Ej: 20000000" value={precio} onChange={e=>setPrecio(e.target.value)}/>
+            <Inp label="Anticipo ($)" type="number" placeholder="Ej: 5000000" value={anticipo} onChange={e=>setAnticipo(e.target.value)}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <Sel label="Cantidad de cuotas" value={ncuotas} onChange={e=>setNcuotas(e.target.value)} options={[6,12,18,24,30,36,48,60,72].map(v=>({value:String(v),label:`${v} cuotas`}))}/>
+              <Inp label="TNA (%)" type="number" placeholder="Ej: 65" value={tna} onChange={e=>setTna(e.target.value)}/>
+            </div>
+            <Inp label="Quebranto / Gastos adm. ($ por cuota)" type="number" placeholder="Opcional. Ej: 15000" value={quebranto} onChange={e=>setQuebranto(e.target.value)}/>
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"#f8fafc",borderRadius:8,border:"1px solid #e5e7eb",cursor:"pointer",userSelect:"none"}} onClick={()=>setConPrenda(!conPrenda)}>
+              <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${conPrenda?"#0284c7":"#d1d5db"}`,background:conPrenda?"#0284c7":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .15s"}}>
+                {conPrenda&&<span style={{color:"#fff",fontSize:11,fontWeight:900,lineHeight:1}}>✓</span>}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:600,color:"#374151"}}>Incluir prenda sobre el vehículo</div>
+                <div style={{fontSize:11,color:"#9ca3af"}}>Suma el 3% del precio del auto al capital</div>
+              </div>
+              {conPrenda&&precioN>0&&<span style={{fontSize:12,color:"#0284c7",fontWeight:700}}>{fmt$(prendaAmt)}</span>}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Columna derecha — resultado */}
+      <div>
+        <Card style={{position:"sticky",top:24}}>
+          <Sec>Resultado de la simulación</Sec>
+          {!canShow
+            ?<div style={{textAlign:"center",padding:"48px 0",color:"#9ca3af",fontSize:13}}>Completá precio, TNA y cuotas para ver el resultado</div>
+            :<div style={{marginTop:10}}>
+              <div style={{textAlign:"center",padding:"18px 0 14px",background:"linear-gradient(135deg,#f0f9ff,#e0f2fe)",borderRadius:12,marginBottom:14}}>
+                <div style={{fontSize:10,color:"#6b7280",fontWeight:700,letterSpacing:.8,textTransform:"uppercase",marginBottom:6}}>Cuota mensual</div>
+                <div style={{fontSize:40,fontWeight:900,color:"#0284c7",letterSpacing:-1.5,lineHeight:1}}>{fmt$(cuotaTotal)}</div>
+                <div style={{fontSize:11,color:"#9ca3af",marginTop:5}}>{n} cuota{n!==1?"s":""} · TNA {tnaNum.toFixed(2)}%</div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                <Row label="Capital a financiar" value={fmt$(capital)} sub={conPrenda?`Incluye prenda ${fmt$(prendaAmt)}`:null}/>
+                <Row label="TNA" value={`${tnaNum.toFixed(2)}%`}/>
+                <Row label="CFTNA" value={`${cftna.toFixed(2)}%`} yellow/>
+                {quebrantoN>0&&<Row label="Quebranto incluido" value={`${fmt$(quebrantoN)} / cuota`}/>}
+                <Row label="Total de intereses" value={fmt$(interesTotal)}/>
+                <Row label="Total en cuotas" value={fmt$(cuotaTotal*n)}/>
+                <Row label="Anticipo" value={fmt$(anticipoN)}/>
+                <Row label="Total a pagar" value={fmt$(totalAPagar)} dark/>
+              </div>
+              <button onClick={descargarPDF} style={{marginTop:16,width:"100%",padding:"12px 0",background:"#dc2626",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontFamily:"inherit"}}>
+                <Ic.Download/> Descargar PDF para el cliente
+              </button>
+              <p style={{fontSize:10,color:"#9ca3af",textAlign:"center",marginTop:8,lineHeight:1.5}}>CFTNA calculado por método IRR según normativa BCRA. El quebranto se computa como cargo mensual en el flujo de pagos.</p>
+            </div>
+          }
+        </Card>
+      </div>
+    </div>
+  </div>);
+}
+
 /* ═══════ MAIN APP ═══════ */
 export default function App(){
   const [data,setDR]=useState(INIT);const [page,setPage]=useState("dashboard");const [loaded,setLoaded]=useState(false);const [user,setUser]=useState(null);
@@ -928,7 +1078,7 @@ export default function App(){
   const allMarcas=useMemo(()=>[...new Set([...DEF_MARCAS,...(data.customMarcas||[])])].sort(),[data.customMarcas]);
   const addMarca=useCallback(m=>{if(!m||allMarcas.includes(m))return;setData({...data,customMarcas:[...(data.customMarcas||[]),m]});},[data,allMarcas,setData]);
   const handleLogout=()=>{if(hasAPI){localStorage.removeItem('checkcar_token');localStorage.removeItem('checkcar_user');localStorage.removeItem('checkcar_tenant');}setUser(null);};
-  const nav=[{id:"dashboard",label:"Dashboard",icon:<Ic.Home/>},{id:"vehicles",label:"Catálogo",icon:<Ic.Car/>},{id:"sold",label:"Vendidos",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"sales",label:"Ventas",icon:<Ic.Chart/>},{id:"clients",label:"Clientes",icon:<Ic.Users/>},{id:"publications",label:"Publicaciones",icon:<Ic.Globe/>},{id:"activity",label:"Actividad",icon:<Ic.Log/>},{id:"calculadora",label:"Calculadora Patentes",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4" strokeLinecap="round"/></svg>},{id:"cotizador",label:"Cotizador",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" strokeLinecap="round" strokeLinejoin="round"/></svg>}];
+  const nav=[{id:"dashboard",label:"Dashboard",icon:<Ic.Home/>},{id:"vehicles",label:"Catálogo",icon:<Ic.Car/>},{id:"sold",label:"Vendidos",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"sales",label:"Ventas",icon:<Ic.Chart/>},{id:"clients",label:"Clientes",icon:<Ic.Users/>},{id:"publications",label:"Publicaciones",icon:<Ic.Globe/>},{id:"activity",label:"Actividad",icon:<Ic.Log/>},{id:"calculadora",label:"Calculadora Patentes",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4" strokeLinecap="round"/></svg>},{id:"cotizador",label:"Cotizador",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"simulador",label:"Simulador Financ.",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8v1m0 10v1M8 12H4m16 0h-4" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="9"/></svg>}];
   if(!loaded)return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#fff",fontFamily:"'DM Sans',system-ui,sans-serif"}}><div style={{color:"#6b7280"}}>Cargando...</div></div>;
   if(!user)return <Login users={data.users} onLogin={setUser}/>;
   const alerts=data.vehicles.filter(v=>!v.vendido&&v.fechaIngreso&&dDiff(v.fechaIngreso,td())>=ALERT_DAYS);
@@ -950,6 +1100,7 @@ export default function App(){
       {page==="activity"&&<ActPage data={data}/>}
       {page==="calculadora"&&<CalcPatentePage/>}
       {page==="cotizador"&&<CotizadorPage/>}
+      {page==="simulador"&&<SimuladorPage/>}
     </main>
   </div>);
 }
