@@ -934,6 +934,8 @@ function SimuladorPage(){
   const capital=Math.max(0,precioN-anticipoN+prendaAmt);
   const tem=tnaNum/100/12;
 
+  // Capital neto recibido por el cliente (precio - anticipo, sin costos adicionales)
+  const netCapital=Math.max(0,precioN-anticipoN);
   let cuotaBase=0,cuotaTotal=0,totalAPagar=0,interesTotal=0,cftna=tnaNum;
   const canShow=capital>0&&n>0&&tnaNum>0;
   if(canShow){
@@ -941,12 +943,15 @@ function SimuladorPage(){
     cuotaTotal=Math.round(cuotaBase+quebrantoN);
     totalAPagar=Math.round(cuotaTotal*n+anticipoN);
     interesTotal=Math.round(cuotaTotal*n-capital);
-    // CFTNA via bisección IRR (incluye quebranto en el flujo de pagos)
-    if(quebrantoN>0){
+    // CFTNA via bisección IRR:
+    // Base = netCapital (lo que el cliente realmente recibe, sin prenda ni quebranto)
+    // Flujo de pago = cuotaTotal (incluye prenda amortizada + quebranto)
+    // Así prenda y quebranto siempre suben el CFTNA por encima de la TNA
+    if(netCapital>0){
       let lo=0.0001,hi=2,mid=tem;
-      for(let i=0;i<200;i++){mid=(lo+hi)/2;const pv=cuotaTotal*(1-Math.pow(1+mid,-n))/mid;if(pv>capital)lo=mid;else hi=mid;}
+      for(let i=0;i<200;i++){mid=(lo+hi)/2;const pv=cuotaTotal*(1-Math.pow(1+mid,-n))/mid;if(pv>netCapital)lo=mid;else hi=mid;}
       cftna=mid*12*100;
-    } else cftna=tnaNum;
+    }
   }
 
   const descargarPDF=()=>{
