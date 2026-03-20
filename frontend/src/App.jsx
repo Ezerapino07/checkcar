@@ -794,11 +794,12 @@ function CotizadorPage(){
     setLoading(true);setError("");
     try{
       const q=encodeURIComponent(`${marca} ${modelo} ${anio}`);
-      const res=await fetch(`https://api.mercadolibre.com/sites/MLA/search?q=${q}&category=MLA1744&limit=50`);
-      if(!res.ok)throw new Error("Error al consultar precios de mercado");
+      const res=await fetch(`https://api.mercadolibre.com/sites/MLA/search?q=${q}&limit=50`);
+      if(!res.ok)throw new Error(`Error ${res.status} al consultar MercadoLibre`);
       const data=await res.json();
-      const precios=data.results.filter(r=>r.price>500000).map(r=>r.price).sort((a,b)=>a-b);
-      if(precios.length<3)throw new Error("No se encontraron suficientes publicaciones. Probá con marca y modelo más generales.");
+      // Filtrar solo resultados con precios coherentes con autos usados (>3M ARS)
+      const precios=data.results.filter(r=>r.price>3000000).map(r=>r.price).sort((a,b)=>a-b);
+      if(precios.length<3)throw new Error("No se encontraron suficientes publicaciones. Probá con términos más generales (ej: sin versión).");
       const trim=Math.floor(precios.length*0.1);
       const filtered=precios.slice(trim,precios.length-trim);
       const promedio=filtered.reduce((a,b)=>a+b,0)/filtered.length;
