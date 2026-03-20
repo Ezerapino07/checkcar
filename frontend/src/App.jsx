@@ -180,7 +180,7 @@ function VForm({vehicle,allMarcas,onSave,onCancel,onAddMarca,clients}){
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
       <Sel label="Estado" value={f.estado} onChange={e=>{set("estado",e.target.value);set("vendido",e.target.value==="Vendido");}} options={EST_V}/>
       <Sel label="Procedencia" value={f.procedencia} onChange={e=>set("procedencia",e.target.value)} options={PROC}/>
-      <Sel label="Ubicación" value={f.ubicacion} onChange={e=>set("ubicacion",e.target.value)} options={UBIC}/>
+      <Inp label="Ubicación" placeholder="Ej: Salón principal, Depósito..." value={f.ubicacion} onChange={e=>set("ubicacion",e.target.value)}/>
     </div>
     {f.estado==="Vendido"&&<><Sec>Datos de la venta</Sec>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -310,7 +310,7 @@ function DashPage({data}){
 }
 
 function VehPage({data,setData,user,allMarcas,addMarca}){const [sf,setSf]=useState(false);const [ev,setEv]=useState(null);const [vv,setVv]=useState(null);const [fl,setFl]=useState({search:"",marca:"",estado:"all",sort:"recent",precioMin:"",precioMax:"",kmMin:"",kmMax:"",anioMin:"",anioMax:"",condicion:"",ubicacion:"",transmision:""});const [sfl,setSfl]=useState(false);
-  const filt=useMemo(()=>{let l=data.vehicles.filter(v=>!v.vendido);if(fl.search){const q=fl.search.toLowerCase();l=l.filter(v=>[v.titulo,v.marca,v.modelo,v.patente,v.version].some(f=>(f||"").toLowerCase().includes(q)));}if(fl.marca)l=l.filter(v=>v.marca===fl.marca);if(fl.estado&&fl.estado!=="all")l=l.filter(v=>v.estado===fl.estado);if(fl.condicion)l=l.filter(v=>v.condicion===fl.condicion);if(fl.ubicacion)l=l.filter(v=>v.ubicacion===fl.ubicacion);if(fl.transmision)l=l.filter(v=>v.transmision===fl.transmision);if(fl.precioMin)l=l.filter(v=>+(v.precioVenta)>=+fl.precioMin);if(fl.precioMax)l=l.filter(v=>+(v.precioVenta)<=+fl.precioMax);if(fl.kmMin)l=l.filter(v=>+(v.kilometros)>=+fl.kmMin);if(fl.kmMax)l=l.filter(v=>+(v.kilometros)<=+fl.kmMax);if(fl.anioMin)l=l.filter(v=>+(v.anio)>=+fl.anioMin);if(fl.anioMax)l=l.filter(v=>+(v.anio)<=+fl.anioMax);const sorts={recent:(a,b)=>b.id-a.id,price_asc:(a,b)=>(+(a.precioVenta)||0)-(+(b.precioVenta)||0),price_desc:(a,b)=>(+(b.precioVenta)||0)-(+(a.precioVenta)||0),km_asc:(a,b)=>(+(a.kilometros)||0)-(+(b.kilometros)||0),km_desc:(a,b)=>(+(b.kilometros)||0)-(+(a.kilometros)||0),year_desc:(a,b)=>(+(b.anio)||0)-(+(a.anio)||0),year_asc:(a,b)=>(+(a.anio)||0)-(+(b.anio)||0)};if(sorts[fl.sort])l.sort(sorts[fl.sort]);return l;},[data.vehicles,fl]);
+  const filt=useMemo(()=>{let l=data.vehicles.filter(v=>!v.vendido);if(fl.search){const q=fl.search.toLowerCase();l=l.filter(v=>[v.titulo,v.marca,v.modelo,v.patente,v.version].some(f=>(f||"").toLowerCase().includes(q)));}if(fl.marca)l=l.filter(v=>v.marca===fl.marca);if(fl.estado&&fl.estado!=="all")l=l.filter(v=>v.estado===fl.estado);if(fl.condicion)l=l.filter(v=>v.condicion===fl.condicion);if(fl.ubicacion)l=l.filter(v=>(v.ubicacion||"").toLowerCase().includes(fl.ubicacion.toLowerCase()));if(fl.transmision)l=l.filter(v=>v.transmision===fl.transmision);if(fl.precioMin)l=l.filter(v=>+(v.precioVenta)>=+fl.precioMin);if(fl.precioMax)l=l.filter(v=>+(v.precioVenta)<=+fl.precioMax);if(fl.kmMin)l=l.filter(v=>+(v.kilometros)>=+fl.kmMin);if(fl.kmMax)l=l.filter(v=>+(v.kilometros)<=+fl.kmMax);if(fl.anioMin)l=l.filter(v=>+(v.anio)>=+fl.anioMin);if(fl.anioMax)l=l.filter(v=>+(v.anio)<=+fl.anioMax);const sorts={recent:(a,b)=>b.id-a.id,price_asc:(a,b)=>(+(a.precioVenta)||0)-(+(b.precioVenta)||0),price_desc:(a,b)=>(+(b.precioVenta)||0)-(+(a.precioVenta)||0),km_asc:(a,b)=>(+(a.kilometros)||0)-(+(b.kilometros)||0),km_desc:(a,b)=>(+(b.kilometros)||0)-(+(a.kilometros)||0),year_desc:(a,b)=>(+(b.anio)||0)-(+(a.anio)||0),year_asc:(a,b)=>(+(a.anio)||0)-(+(b.anio)||0)};if(sorts[fl.sort])l.sort(sorts[fl.sort]);return l;},[data.vehicles,fl]);
   const save=f=>{const nd={...data};const now=new Date().toLocaleString("es-AR");if(f.id){nd.vehicles=data.vehicles.map(v=>v.id===f.id?f:v);nd.activityLog=[{date:now,user:user.name,action:`Editó vehículo: ${f.titulo||f.marca+" "+f.modelo}`},...(data.activityLog||[])];}else{f.id=data.nextVId;nd.nextVId=data.nextVId+1;nd.vehicles=[...data.vehicles,f];nd.activityLog=[{date:now,user:user.name,action:`Agregó vehículo: ${f.titulo||f.marca+" "+f.modelo}`},...(data.activityLog||[])];}setData(nd);setSf(false);setEv(null);};
   const del=id=>{if(!confirm("¿Eliminar?"))return;const v=data.vehicles.find(x=>x.id===id);const now=new Date().toLocaleString("es-AR");setData({...data,vehicles:data.vehicles.filter(x=>x.id!==id),activityLog:[{date:now,user:user.name,action:`Eliminó vehículo: ${v?.titulo||v?.marca+" "+v?.modelo}`},...(data.activityLog||[])]});};
   const publish=(vid,platform)=>{const now=new Date().toLocaleString("es-AR");const pub={id:data.nextPubId,vehiculoId:vid,plataforma:platform,externalId:"SIM-"+Math.random().toString(36).slice(2,8).toUpperCase(),estado:"activa",fecha:td()};setData({...data,nextPubId:data.nextPubId+1,publications:[...(data.publications||[]),pub],activityLog:[{date:now,user:user.name,action:`Publicó vehículo en ${platform}`},...(data.activityLog||[])]});};
@@ -318,7 +318,7 @@ function VehPage({data,setData,user,allMarcas,addMarca}){const [sf,setSf]=useSta
   const marcas=[...new Set(data.vehicles.map(v=>v.marca).filter(Boolean))].sort();
   return(<div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}><h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:0,letterSpacing:-.5}}>Catálogo de Vehículos</h1><div style={{display:"flex",gap:6}}><Btn variant="secondary" size="sm" onClick={()=>exportVehiclesXLS(filt)}><Ic.Download/> Excel</Btn><Btn variant="secondary" size="sm" onClick={()=>downloadPDF(filt)}><Ic.Download/> PDF</Btn><Btn variant="primary" onClick={()=>{setEv(null);setSf(true);}}><Ic.Plus/> Nuevo</Btn></div></div>
-    <Card style={{marginBottom:14,padding:12}}><div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}><div style={{position:"relative",flex:1,minWidth:160}}><span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",color:"#9ca3af"}}><Ic.Search/></span><input placeholder="Buscar..." value={fl.search} onChange={e=>setFl(f=>({...f,search:e.target.value}))} style={{width:"100%",padding:"7px 9px 7px 28px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:12,background:"#fafbfc",outline:"none",boxSizing:"border-box"}}/></div><select value={fl.marca} onChange={e=>setFl(f=>({...f,marca:e.target.value}))} style={{padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc"}}><option value="">Marcas</option>{marcas.map(m=><option key={m}>{m}</option>)}</select><select value={fl.estado} onChange={e=>setFl(f=>({...f,estado:e.target.value}))} style={{padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc"}}><option value="all">Todos</option>{EST_V.filter(e=>e!=="Vendido").map(e=><option key={e} value={e}>{e}</option>)}</select><select value={fl.sort} onChange={e=>setFl(f=>({...f,sort:e.target.value}))} style={{padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc"}}><option value="recent">Reciente</option><option value="price_asc">Precio ↑</option><option value="price_desc">Precio ↓</option><option value="km_asc">Km ↑</option><option value="km_desc">Km ↓</option><option value="year_desc">Año ↓</option><option value="year_asc">Año ↑</option></select><Btn variant="ghost" size="sm" onClick={()=>setSfl(!sfl)}>{sfl?"Menos":"Filtros"} <Ic.Down/></Btn></div>{sfl&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid #f3f4f6"}}><Inp label="$ mín" type="number" value={fl.precioMin} onChange={e=>setFl(f=>({...f,precioMin:e.target.value}))}/><Inp label="$ máx" type="number" value={fl.precioMax} onChange={e=>setFl(f=>({...f,precioMax:e.target.value}))}/><Inp label="Km mín" type="number" value={fl.kmMin} onChange={e=>setFl(f=>({...f,kmMin:e.target.value}))}/><Inp label="Km máx" type="number" value={fl.kmMax} onChange={e=>setFl(f=>({...f,kmMax:e.target.value}))}/><Inp label="Año ≥" type="number" value={fl.anioMin} onChange={e=>setFl(f=>({...f,anioMin:e.target.value}))}/><Inp label="Año ≤" type="number" value={fl.anioMax} onChange={e=>setFl(f=>({...f,anioMax:e.target.value}))}/><Sel label="Condición" value={fl.condicion} onChange={e=>setFl(f=>({...f,condicion:e.target.value}))} options={[{value:"",label:"Todas"},...COND]}/><Sel label="Ubicación" value={fl.ubicacion} onChange={e=>setFl(f=>({...f,ubicacion:e.target.value}))} options={[{value:"",label:"Todas"},...UBIC]}/><Sel label="Trans." value={fl.transmision} onChange={e=>setFl(f=>({...f,transmision:e.target.value}))} options={[{value:"",label:"Todas"},...TRANS]}/></div>}</Card>
+    <Card style={{marginBottom:14,padding:12}}><div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}><div style={{position:"relative",flex:1,minWidth:160}}><span style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",color:"#9ca3af"}}><Ic.Search/></span><input placeholder="Buscar..." value={fl.search} onChange={e=>setFl(f=>({...f,search:e.target.value}))} style={{width:"100%",padding:"7px 9px 7px 28px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:12,background:"#fafbfc",outline:"none",boxSizing:"border-box"}}/></div><select value={fl.marca} onChange={e=>setFl(f=>({...f,marca:e.target.value}))} style={{padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc"}}><option value="">Marcas</option>{marcas.map(m=><option key={m}>{m}</option>)}</select><select value={fl.estado} onChange={e=>setFl(f=>({...f,estado:e.target.value}))} style={{padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc"}}><option value="all">Todos</option>{EST_V.filter(e=>e!=="Vendido").map(e=><option key={e} value={e}>{e}</option>)}</select><select value={fl.sort} onChange={e=>setFl(f=>({...f,sort:e.target.value}))} style={{padding:"7px 9px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:11,background:"#fafbfc"}}><option value="recent">Reciente</option><option value="price_asc">Precio ↑</option><option value="price_desc">Precio ↓</option><option value="km_asc">Km ↑</option><option value="km_desc">Km ↓</option><option value="year_desc">Año ↓</option><option value="year_asc">Año ↑</option></select><Btn variant="ghost" size="sm" onClick={()=>setSfl(!sfl)}>{sfl?"Menos":"Filtros"} <Ic.Down/></Btn></div>{sfl&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid #f3f4f6"}}><Inp label="$ mín" type="number" value={fl.precioMin} onChange={e=>setFl(f=>({...f,precioMin:e.target.value}))}/><Inp label="$ máx" type="number" value={fl.precioMax} onChange={e=>setFl(f=>({...f,precioMax:e.target.value}))}/><Inp label="Km mín" type="number" value={fl.kmMin} onChange={e=>setFl(f=>({...f,kmMin:e.target.value}))}/><Inp label="Km máx" type="number" value={fl.kmMax} onChange={e=>setFl(f=>({...f,kmMax:e.target.value}))}/><Inp label="Año ≥" type="number" value={fl.anioMin} onChange={e=>setFl(f=>({...f,anioMin:e.target.value}))}/><Inp label="Año ≤" type="number" value={fl.anioMax} onChange={e=>setFl(f=>({...f,anioMax:e.target.value}))}/><Sel label="Condición" value={fl.condicion} onChange={e=>setFl(f=>({...f,condicion:e.target.value}))} options={[{value:"",label:"Todas"},...COND]}/><Inp label="Ubicación" placeholder="Filtrar ubicación..." value={fl.ubicacion} onChange={e=>setFl(f=>({...f,ubicacion:e.target.value}))}/><Sel label="Trans." value={fl.transmision} onChange={e=>setFl(f=>({...f,transmision:e.target.value}))} options={[{value:"",label:"Todas"},...TRANS]}/></div>}</Card>
     <div style={{fontSize:11,color:"#6b7280",marginBottom:8}}>{filt.length} vehículo{filt.length!==1?"s":""}</div>
     {filt.length>0?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12}}>{filt.map(v=><VCard key={v.id} vehicle={v} onView={setVv} onEdit={v=>{setEv(v);setSf(true);}} onDelete={del} pubCount={(data.publications||[]).filter(p=>p.vehiculoId===v.id&&p.estado==="activa").length}/>)}</div>:<Card style={{textAlign:"center",padding:36,color:"#9ca3af"}}><p style={{margin:0}}>Sin resultados.</p></Card>}
     {sf&&<VForm vehicle={ev} allMarcas={allMarcas} onSave={save} onCancel={()=>{setSf(false);setEv(null);}} onAddMarca={addMarca} clients={data.clients}/>}
@@ -595,6 +595,130 @@ function UserManager({user,data,setData}){
   );
 }
 
+/* ═══════ CALCULADORA DE PATENTES ═══════ */
+const PROVINCIAS_PATENTE=[
+  {name:"Buenos Aires (Prov.)",tramos:[{maxAge:3,rate:3.0},{maxAge:6,rate:2.5},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores (ARBA)"},
+  {name:"CABA",tramos:[{maxAge:1,rate:3.5},{maxAge:5,rate:2.5},{maxAge:10,rate:1.5},{maxAge:Infinity,rate:0.75}],cuotas:5,nota:"Patente Anual de Radicación"},
+  {name:"Córdoba",tramos:[{maxAge:5,rate:3.0},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores"},
+  {name:"Santa Fe",tramos:[{maxAge:5,rate:3.0},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.0}],cuotas:5,nota:"Impuesto Provincial de Automotores"},
+  {name:"Mendoza",tramos:[{maxAge:5,rate:2.5},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores"},
+  {name:"Entre Ríos",tramos:[{maxAge:5,rate:2.5},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto de Automotores"},
+  {name:"Tucumán",tramos:[{maxAge:5,rate:2.5},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores"},
+  {name:"Salta",tramos:[{maxAge:5,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores"},
+  {name:"Neuquén",tramos:[{maxAge:5,rate:2.5},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto Provincial de Automotores"},
+  {name:"Misiones",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
+  {name:"Chaco",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
+  {name:"Corrientes",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
+  {name:"Jujuy",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
+  {name:"San Juan",tramos:[{maxAge:5,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:""},
+  {name:"Río Negro",tramos:[{maxAge:5,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:""},
+  {name:"La Pampa",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
+  {name:"San Luis",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
+  {name:"Chubut",tramos:[{maxAge:5,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:""},
+  {name:"Santiago del Estero",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
+  {name:"La Rioja",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
+  {name:"Catamarca",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
+  {name:"Formosa",tramos:[{maxAge:Infinity,rate:1.5}],cuotas:5,nota:""},
+  {name:"Tierra del Fuego",tramos:[{maxAge:Infinity,rate:1.0}],cuotas:5,nota:""},
+];
+
+function CalcPatentePage(){
+  const anioActual=new Date().getFullYear();
+  const [valuacion,setValuacion]=useState("");
+  const [provincia,setProvincia]=useState("");
+  const [anioVeh,setAnioVeh]=useState(String(anioActual));
+
+  const prov=PROVINCIAS_PATENTE.find(p=>p.name===provincia);
+  const edad=prov?anioActual-(+anioVeh||anioActual):null;
+  const tramo=prov?prov.tramos.find(t=>edad<=t.maxAge):null;
+  const rate=tramo?tramo.rate:null;
+  const base=+(valuacion.replace(/\./g,"").replace(",","."))||0;
+  const anual=base&&rate?(base*rate/100):null;
+  const cuota=anual&&prov?anual/prov.cuotas:null;
+
+  const aniosOpt=Array.from({length:40},(_,i)=>String(anioActual-i));
+
+  return(<div>
+    <h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:"0 0 6px",letterSpacing:-.5}}>Calculadora de Patentes</h1>
+    <p style={{fontSize:13,color:"#6b7280",margin:"0 0 22px"}}>Ingresá la valuación fiscal del vehículo (consultala en DNRPA / ARBA / organismo provincial) y seleccioná la provincia para estimar el impuesto.</p>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,maxWidth:780}}>
+      <Card>
+        <Sec>Datos del vehículo</Sec>
+        <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
+          <Sel label="Provincia" value={provincia} onChange={e=>setProvincia(e.target.value)} options={[{value:"",label:"Seleccioná una provincia..."},...PROVINCIAS_PATENTE.map(p=>({value:p.name,label:p.name}))]}/>
+          <Sel label="Año del vehículo" value={anioVeh} onChange={e=>setAnioVeh(e.target.value)} options={aniosOpt}/>
+          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#4b5563"}}>Valuación fiscal ($)</label>
+            <input
+              type="number"
+              placeholder="Ej: 25000000"
+              value={valuacion}
+              onChange={e=>setValuacion(e.target.value)}
+              style={{padding:"8px 11px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:13,background:"#fafbfc",color:"#1f2937",outline:"none"}}
+              onFocus={e=>e.target.style.borderColor="#0ea5e9"}
+              onBlur={e=>e.target.style.borderColor="#e5e7eb"}
+            />
+            <span style={{fontSize:10,color:"#9ca3af",marginTop:2}}>Consultá la valuación vigente en el organismo correspondiente de tu provincia</span>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <Sec>Resultado estimado</Sec>
+        {(!provincia||!base)?
+          <div style={{textAlign:"center",padding:"32px 0",color:"#9ca3af",fontSize:13}}>Completá los datos para calcular</div>
+        :rate===null?
+          <div style={{textAlign:"center",padding:"32px 0",color:"#ef4444",fontSize:13}}>Provincia no disponible</div>
+        :<div style={{marginTop:8}}>
+          <div style={{padding:"10px 14px",background:"#f0f9ff",borderRadius:8,marginBottom:10,fontSize:12,color:"#0369a1"}}>
+            <strong>{prov.name}</strong>{prov.nota&&<span style={{color:"#6b7280"}}> · {prov.nota}</span>}<br/>
+            Antigüedad: <strong>{edad===0?"0km / nuevo":edad===1?"1 año":`${edad} años`}</strong> · Alícuota: <strong style={{color:"#0284c7"}}>{rate}%</strong>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:"#f9fafb",borderRadius:8}}>
+              <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Impuesto anual</span>
+              <span style={{fontSize:18,fontWeight:800,color:"#111827",letterSpacing:-.5}}>{fmt$(anual)}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#f9fafb",borderRadius:8}}>
+              <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Por cuota ({prov.cuotas} cuotas)</span>
+              <span style={{fontSize:16,fontWeight:700,color:"#0284c7"}}>{fmt$(cuota)}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#f9fafb",borderRadius:8}}>
+              <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Valuación ingresada</span>
+              <span style={{fontSize:13,fontWeight:600,color:"#374151"}}>{fmt$(base)}</span>
+            </div>
+          </div>
+          <div style={{marginTop:12,padding:"8px 12px",background:"#fefce8",border:"1px solid #fde68a",borderRadius:8,fontSize:11,color:"#92400e",lineHeight:1.5}}>
+            ⚠ Cálculo estimativo. Las alícuotas pueden variar según resolución vigente de cada provincia. Verificar siempre con el organismo recaudador.
+          </div>
+        </div>}
+      </Card>
+    </div>
+
+    <Card style={{marginTop:20,maxWidth:780}}>
+      <Sec>Alícuotas por provincia (referencia)</Sec>
+      <div style={{overflowX:"auto",marginTop:8}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead><tr style={{background:"#f8fafc"}}><th style={{padding:"8px 12px",textAlign:"left",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Provincia</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>0-5 años</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>6-10 años</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>+10 años</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Cuotas</th></tr></thead>
+          <tbody>{PROVINCIAS_PATENTE.map((p,i)=>{
+            const r0=p.tramos.find(t=>3<=t.maxAge||t.maxAge===Infinity)?.rate;
+            const r6=p.tramos.find(t=>t.maxAge>=8&&t.maxAge<Infinity)?.rate||(p.tramos[p.tramos.length-1]?.rate);
+            const r10=p.tramos[p.tramos.length-1]?.rate;
+            const fmt=r=>`${r}%`;
+            return(<tr key={p.name} style={{background:i%2===0?"#fff":"#f9fafb",borderBottom:"1px solid #f3f4f6"}}>
+              <td style={{padding:"7px 12px",fontWeight:600,color:"#111827"}}>{p.name}</td>
+              <td style={{padding:"7px 12px",textAlign:"center",color:"#dc2626",fontWeight:600}}>{fmt(r0)}</td>
+              <td style={{padding:"7px 12px",textAlign:"center",color:"#d97706",fontWeight:600}}>{fmt(r6)}</td>
+              <td style={{padding:"7px 12px",textAlign:"center",color:"#16a34a",fontWeight:600}}>{fmt(r10)}</td>
+              <td style={{padding:"7px 12px",textAlign:"center",color:"#6b7280"}}>{p.cuotas}</td>
+            </tr>);
+          })}</tbody>
+        </table>
+      </div>
+    </Card>
+  </div>);
+}
+
 /* ═══════ MAIN APP ═══════ */
 export default function App(){
   const [data,setDR]=useState(INIT);const [page,setPage]=useState("dashboard");const [loaded,setLoaded]=useState(false);const [user,setUser]=useState(null);
@@ -607,7 +731,7 @@ export default function App(){
   const allMarcas=useMemo(()=>[...new Set([...DEF_MARCAS,...(data.customMarcas||[])])].sort(),[data.customMarcas]);
   const addMarca=useCallback(m=>{if(!m||allMarcas.includes(m))return;setData({...data,customMarcas:[...(data.customMarcas||[]),m]});},[data,allMarcas,setData]);
   const handleLogout=()=>{if(hasAPI){localStorage.removeItem('checkcar_token');localStorage.removeItem('checkcar_user');localStorage.removeItem('checkcar_tenant');}setUser(null);};
-  const nav=[{id:"dashboard",label:"Dashboard",icon:<Ic.Home/>},{id:"vehicles",label:"Catálogo",icon:<Ic.Car/>},{id:"sold",label:"Vendidos",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"sales",label:"Ventas",icon:<Ic.Chart/>},{id:"clients",label:"Clientes",icon:<Ic.Users/>},{id:"publications",label:"Publicaciones",icon:<Ic.Globe/>},{id:"activity",label:"Actividad",icon:<Ic.Log/>}];
+  const nav=[{id:"dashboard",label:"Dashboard",icon:<Ic.Home/>},{id:"vehicles",label:"Catálogo",icon:<Ic.Car/>},{id:"sold",label:"Vendidos",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"sales",label:"Ventas",icon:<Ic.Chart/>},{id:"clients",label:"Clientes",icon:<Ic.Users/>},{id:"publications",label:"Publicaciones",icon:<Ic.Globe/>},{id:"activity",label:"Actividad",icon:<Ic.Log/>},{id:"calculadora",label:"Calculadora Patentes",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4" strokeLinecap="round"/></svg>}];
   if(!loaded)return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#fff",fontFamily:"'DM Sans',system-ui,sans-serif"}}><div style={{color:"#6b7280"}}>Cargando...</div></div>;
   if(!user)return <Login users={data.users} onLogin={setUser}/>;
   const alerts=data.vehicles.filter(v=>!v.vendido&&v.fechaIngreso&&dDiff(v.fechaIngreso,td())>=ALERT_DAYS);
@@ -627,6 +751,7 @@ export default function App(){
       {page==="clients"&&<CliPage data={data} setData={setData} user={user}/>}
       {page==="publications"&&<PubPage data={data} setData={setData} user={user}/>}
       {page==="activity"&&<ActPage data={data}/>}
+      {page==="calculadora"&&<CalcPatentePage/>}
     </main>
   </div>);
 }
