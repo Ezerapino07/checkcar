@@ -764,6 +764,142 @@ function CalcPatentePage(){
   </div>);
 }
 
+/* ═══════ COTIZADOR DE AUTOS USADOS ═══════ */
+function CotizadorPage(){
+  const anioActual=new Date().getFullYear();
+  const [paso,setPaso]=useState(1);
+  const [patente,setPatente]=useState("");
+  const [patenteOk,setPatenteOk]=useState(false);
+  const [marca,setMarca]=useState("");
+  const [modelo,setModelo]=useState("");
+  const [anio,setAnio]=useState("");
+  const [version,setVersion]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [resultado,setResultado]=useState(null);
+  const [error,setError]=useState("");
+
+  const aniosOpt=Array.from({length:anioActual-1980+1},(_,i)=>String(anioActual-i));
+
+  const buscarPatente=()=>{
+    const p=patente.trim().toUpperCase();
+    if(/^[A-Z]{3}\d{3}$/.test(p)||/^[A-Z]{2}\d{3}[A-Z]{2}$/.test(p)){
+      setPatenteOk(true);setError("");
+    } else {
+      setError("Formato de patente inválido. Ej: ABC123 o AB123CD");
+    }
+  };
+
+  const cotizar=async()=>{
+    if(!marca||!modelo||!anio)return;
+    setLoading(true);setError("");
+    try{
+      const q=encodeURIComponent(`${marca} ${modelo} ${anio}`);
+      const res=await fetch(`https://api.mercadolibre.com/sites/MLA/search?q=${q}&category=MLA1744&limit=50`);
+      if(!res.ok)throw new Error("Error al consultar precios de mercado");
+      const data=await res.json();
+      const precios=data.results.filter(r=>r.price>500000).map(r=>r.price).sort((a,b)=>a-b);
+      if(precios.length<3)throw new Error("No se encontraron suficientes publicaciones. Probá con marca y modelo más generales.");
+      const trim=Math.floor(precios.length*0.1);
+      const filtered=precios.slice(trim,precios.length-trim);
+      const promedio=filtered.reduce((a,b)=>a+b,0)/filtered.length;
+      setResultado({
+        mercado:Math.round(promedio),
+        min:Math.round(promedio*0.75),
+        max:Math.round(promedio*0.90),
+        cantidad:precios.length,
+      });
+      setPaso(2);
+    }catch(e){
+      setError(e.message||"No se pudo obtener el precio de mercado");
+    }
+    setLoading(false);
+  };
+
+  const reiniciar=()=>{setPaso(1);setResultado(null);setError("");setPatenteOk(false);};
+
+  const StepCircle=({n,done})=>(
+    <div style={{width:28,height:28,borderRadius:"50%",background:done?"#16a34a":n===paso?"#dc2626":"#e5e7eb",color:"#fff",fontSize:13,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+      {done?"✓":n}
+    </div>
+  );
+
+  return(<div style={{maxWidth:540}}>
+    <h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:"0 0 6px",letterSpacing:-.5}}>Cotizador de Autos Usados</h1>
+    <p style={{fontSize:13,color:"#6b7280",margin:"0 0 22px"}}>Estimá el valor de compra de un auto usado en base al precio actual de mercado.</p>
+    <Card>
+      {/* PASO 1 */}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:paso===1?16:8}}>
+        <StepCircle n={1} done={paso>1}/>
+        <span style={{fontWeight:700,fontSize:14,color:paso===1?"#111827":"#6b7280"}}>Ingresá los datos del vehículo</span>
+      </div>
+      {paso===1&&<div style={{display:"flex",flexDirection:"column",gap:12,paddingLeft:38}}>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#4b5563",display:"block",marginBottom:3}}>Patente (opcional)</label>
+          <div style={{display:"flex",gap:6}}>
+            <input placeholder="Ej: AB123CD" value={patente} onChange={e=>{setPatente(e.target.value.toUpperCase());setPatenteOk(false);}} onKeyDown={e=>e.key==="Enter"&&buscarPatente()} style={{flex:1,padding:"8px 11px",border:`1px solid ${patenteOk?"#16a34a":"#e5e7eb"}`,borderRadius:8,fontSize:13,background:"#fafbfc",color:"#1f2937",outline:"none",textTransform:"uppercase"}}/>
+            <button onClick={buscarPatente} style={{padding:"8px 16px",background:"#dc2626",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>BUSCAR</button>
+          </div>
+          {patenteOk&&<p style={{fontSize:11,color:"#16a34a",margin:"4px 0 0",fontWeight:600}}>✓ Patente válida — completá los datos del vehículo</p>}
+        </div>
+        <div style={{borderTop:"1px solid #f3f4f6",paddingTop:12}}>
+          <Sel label="Marca" value={marca} onChange={e=>{setMarca(e.target.value);setModelo("");}} options={[{value:"",label:"Seleccioná la marca..."},...DEF_MARCAS.map(m=>({value:m,label:m}))]}/>
+        </div>
+        <Inp label="Modelo" placeholder="Ej: Corolla, Palio, Sandero..." value={modelo} onChange={e=>setModelo(e.target.value)}/>
+        <Sel label="Año" value={anio} onChange={e=>setAnio(e.target.value)} options={[{value:"",label:"Seleccioná el año..."},...aniosOpt]}/>
+        <Inp label="Versión (opcional)" placeholder="Ej: 1.6 XEi, Highline, GTi..." value={version} onChange={e=>setVersion(e.target.value)}/>
+        {error&&<div style={{padding:"8px 12px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,fontSize:12,color:"#dc2626"}}>{error}</div>}
+        <button onClick={cotizar} disabled={!marca||!modelo||!anio||loading} style={{marginTop:4,padding:"11px 0",background:(!marca||!modelo||!anio||loading)?"#e5e7eb":"#0284c7",color:(!marca||!modelo||!anio||loading)?"#9ca3af":"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:(!marca||!modelo||!anio||loading)?"not-allowed":"pointer",transition:"all .15s",fontFamily:"inherit"}}>
+          {loading?"Consultando precios de mercado...":"Cotizar"}
+        </button>
+      </div>}
+      {paso>1&&<div style={{paddingLeft:38,fontSize:13,color:"#6b7280",paddingBottom:8}}>
+        <strong style={{color:"#111827"}}>{marca} {modelo} {anio}</strong>{version&&` · ${version}`}{patente&&<span style={{color:"#9ca3af"}}> · {patente}</span>}
+        <button onClick={reiniciar} style={{marginLeft:12,background:"none",border:"none",color:"#0284c7",cursor:"pointer",fontSize:12,fontWeight:600,padding:0,fontFamily:"inherit"}}>Modificar</button>
+      </div>}
+
+      {/* Separador entre pasos */}
+      {paso>=2&&<div style={{borderLeft:"2px solid #e5e7eb",marginLeft:13,height:16,marginBottom:4}}/>}
+
+      {/* PASO 2 */}
+      {paso>=2&&resultado&&<div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <StepCircle n={2} done={false}/>
+          <span style={{fontWeight:700,fontSize:14,color:"#111827"}}>Precio de referencia</span>
+        </div>
+        <div style={{paddingLeft:38}}>
+          <div style={{textAlign:"center",padding:"20px 0 16px"}}>
+            <div style={{fontSize:12,color:"#6b7280",marginBottom:4}}>Valor del vehículo (*)</div>
+            <div style={{fontSize:13,color:"#0284c7",fontWeight:700,marginBottom:16}}>Entre</div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:24,flexWrap:"wrap"}}>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:10,color:"#6b7280",fontWeight:700,letterSpacing:1,marginBottom:2}}>ARS</div>
+                <div style={{fontSize:32,fontWeight:900,color:"#111827",letterSpacing:-1,lineHeight:1}}>{resultado.min.toLocaleString("es-AR")}</div>
+              </div>
+              <div style={{fontSize:22,color:"#9ca3af",fontWeight:300}}>y</div>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:10,color:"#6b7280",fontWeight:700,letterSpacing:1,marginBottom:2}}>ARS</div>
+                <div style={{fontSize:32,fontWeight:900,color:"#111827",letterSpacing:-1,lineHeight:1}}>{resultado.max.toLocaleString("es-AR")}</div>
+              </div>
+            </div>
+            <div style={{marginTop:16,display:"flex",justifyContent:"center",gap:10,flexWrap:"wrap"}}>
+              <div style={{padding:"5px 12px",background:"#f0fdf4",borderRadius:20,fontSize:11,color:"#16a34a",fontWeight:600}}>−25% del mercado</div>
+              <div style={{padding:"5px 12px",background:"#f0f9ff",borderRadius:20,fontSize:11,color:"#0284c7",fontWeight:600}}>−10% del mercado</div>
+            </div>
+          </div>
+          <div style={{padding:"10px 14px",background:"#f8fafc",borderRadius:8,fontSize:12,color:"#6b7280",border:"1px solid #f3f4f6"}}>
+            <div style={{marginBottom:3}}>Precio de mercado de referencia: <strong style={{color:"#374151"}}>{fmt$(resultado.mercado)}</strong></div>
+            <div>Basado en <strong>{resultado.cantidad}</strong> publicaciones activas en MercadoLibre Argentina</div>
+          </div>
+          <div style={{marginTop:10,padding:"8px 12px",background:"#fefce8",border:"1px solid #fde68a",borderRadius:8,fontSize:11,color:"#92400e",lineHeight:1.6}}>
+            (*) Precio estimativo basado en publicaciones de MercadoLibre. El rango representa entre un 10% y un 25% por debajo del precio de mercado. Sujeto a inspección, verificación de documentación y estado real del vehículo.
+          </div>
+          <button onClick={reiniciar} style={{marginTop:14,width:"100%",padding:"10px 0",background:"#f3f4f6",color:"#374151",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Nueva cotización</button>
+        </div>
+      </div>}
+    </Card>
+  </div>);
+}
+
 /* ═══════ MAIN APP ═══════ */
 export default function App(){
   const [data,setDR]=useState(INIT);const [page,setPage]=useState("dashboard");const [loaded,setLoaded]=useState(false);const [user,setUser]=useState(null);
@@ -776,7 +912,7 @@ export default function App(){
   const allMarcas=useMemo(()=>[...new Set([...DEF_MARCAS,...(data.customMarcas||[])])].sort(),[data.customMarcas]);
   const addMarca=useCallback(m=>{if(!m||allMarcas.includes(m))return;setData({...data,customMarcas:[...(data.customMarcas||[]),m]});},[data,allMarcas,setData]);
   const handleLogout=()=>{if(hasAPI){localStorage.removeItem('checkcar_token');localStorage.removeItem('checkcar_user');localStorage.removeItem('checkcar_tenant');}setUser(null);};
-  const nav=[{id:"dashboard",label:"Dashboard",icon:<Ic.Home/>},{id:"vehicles",label:"Catálogo",icon:<Ic.Car/>},{id:"sold",label:"Vendidos",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"sales",label:"Ventas",icon:<Ic.Chart/>},{id:"clients",label:"Clientes",icon:<Ic.Users/>},{id:"publications",label:"Publicaciones",icon:<Ic.Globe/>},{id:"activity",label:"Actividad",icon:<Ic.Log/>},{id:"calculadora",label:"Calculadora Patentes",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4" strokeLinecap="round"/></svg>}];
+  const nav=[{id:"dashboard",label:"Dashboard",icon:<Ic.Home/>},{id:"vehicles",label:"Catálogo",icon:<Ic.Car/>},{id:"sold",label:"Vendidos",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round"/></svg>},{id:"sales",label:"Ventas",icon:<Ic.Chart/>},{id:"clients",label:"Clientes",icon:<Ic.Users/>},{id:"publications",label:"Publicaciones",icon:<Ic.Globe/>},{id:"activity",label:"Actividad",icon:<Ic.Log/>},{id:"calculadora",label:"Calculadora Patentes",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4" strokeLinecap="round"/></svg>},{id:"cotizador",label:"Cotizador",icon:<svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" strokeLinecap="round" strokeLinejoin="round"/></svg>}];
   if(!loaded)return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#fff",fontFamily:"'DM Sans',system-ui,sans-serif"}}><div style={{color:"#6b7280"}}>Cargando...</div></div>;
   if(!user)return <Login users={data.users} onLogin={setUser}/>;
   const alerts=data.vehicles.filter(v=>!v.vendido&&v.fechaIngreso&&dDiff(v.fechaIngreso,td())>=ALERT_DAYS);
@@ -797,6 +933,7 @@ export default function App(){
       {page==="publications"&&<PubPage data={data} setData={setData} user={user}/>}
       {page==="activity"&&<ActPage data={data}/>}
       {page==="calculadora"&&<CalcPatentePage/>}
+      {page==="cotizador"&&<CotizadorPage/>}
     </main>
   </div>);
 }
