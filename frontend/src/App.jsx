@@ -596,169 +596,183 @@ function UserManager({user,data,setData}){
 }
 
 /* ═══════ CALCULADORA DE PATENTES ═══════ */
-const PROVINCIAS_PATENTE=[
-  {name:"Buenos Aires (Prov.)",escalas:[
-    {max:14100000,fixed:0,rate:1.0,base:0},
-    {max:18700000,fixed:141000,rate:2.0,base:14100000},
-    {max:26100000,fixed:233000,rate:3.0,base:18700000},
-    {max:53900000,fixed:455000,rate:4.0,base:26100000},
-    {max:Infinity,fixed:1567000,rate:4.5,base:53900000},
-  ],cuotas:10,descuentoAnual:15,nota:"ARBA 2026 — Escala progresiva por valuación fiscal"},
-  {name:"CABA",tramos:[{maxAge:1,rate:3.5},{maxAge:5,rate:2.5},{maxAge:10,rate:1.5},{maxAge:Infinity,rate:0.75}],cuotas:5,nota:"Patente Anual de Radicación"},
-  {name:"Córdoba",tramos:[{maxAge:5,rate:3.0},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores"},
-  {name:"Santa Fe",tramos:[{maxAge:5,rate:3.0},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.0}],cuotas:5,nota:"Impuesto Provincial de Automotores"},
-  {name:"Mendoza",tramos:[{maxAge:5,rate:2.5},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores"},
-  {name:"Entre Ríos",tramos:[{maxAge:5,rate:2.5},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto de Automotores"},
-  {name:"Tucumán",tramos:[{maxAge:5,rate:2.5},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores"},
-  {name:"Salta",tramos:[{maxAge:5,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto a los Automotores"},
-  {name:"Neuquén",tramos:[{maxAge:5,rate:2.5},{maxAge:10,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:"Impuesto Provincial de Automotores"},
-  {name:"Misiones",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
-  {name:"Chaco",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
-  {name:"Corrientes",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
-  {name:"Jujuy",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
-  {name:"San Juan",tramos:[{maxAge:5,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:""},
-  {name:"Río Negro",tramos:[{maxAge:5,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:""},
-  {name:"La Pampa",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
-  {name:"San Luis",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
-  {name:"Chubut",tramos:[{maxAge:5,rate:2.0},{maxAge:Infinity,rate:1.5}],cuotas:5,nota:""},
-  {name:"Santiago del Estero",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
-  {name:"La Rioja",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
-  {name:"Catamarca",tramos:[{maxAge:Infinity,rate:2.0}],cuotas:5,nota:""},
-  {name:"Formosa",tramos:[{maxAge:Infinity,rate:1.5}],cuotas:5,nota:""},
-  {name:"Tierra del Fuego",tramos:[{maxAge:Infinity,rate:1.0}],cuotas:5,nota:""},
-];
+const PATENTE_PROV={
+  buenos_aires:{nombre:"Buenos Aires (PBA)",escalas:[{desde:0,hasta:14100000,fijo:0,ali:0.01},{desde:14100000,hasta:18700000,fijo:141000,ali:0.02},{desde:18700000,hasta:25000000,fijo:233000,ali:0.025},{desde:25000000,hasta:35000000,fijo:390500,ali:0.035},{desde:35000000,fijo:740500,ali:0.045}],marginal:true,pickupAli:0.015,pickupDif:true,pickupNota:"Pick-up: 1,5% solo si está afectada a actividad laboral (autónomo/monotrib.). Sin afectación, paga escala general.",frec:"mensual",cuotas:10,elecExento:true,hibridoExento:true,nota:"Desde 2026: 10 cuotas mensuales (mar–dic). Eléctrico/Híbrido: exentos (solicitar en ARBA). Desc. 15% pago anual."},
+  caba:{nombre:"CABA",escalas:[{hasta:5000000,ali:0.016},{hasta:12000000,ali:0.02},{hasta:25000000,ali:0.025},{hasta:50000000,ali:0.035},{hasta:100000000,ali:0.05},{ali:0.06}],pickupAli:0.023,pickupDif:true,frec:"bimestral",cuotas:6,elecExento:true,hibridoEsc:true,nota:"Eléctrico: exento permanente. Híbrido: años 1-2 exento, año 3 paga 40%, año 4 paga 60%, año 5 paga 80%, año 6+ completo. Pick-up/utilitario: 2,3% fijo. Desc. 10% pago anual. (Escala auto aproximada)"},
+  cordoba:{nombre:"Córdoba",escalas:[{ali:0.015}],luxoAli:0.021,luxoUmbral:48000000,pickupDif:false,frec:"mensual",cuotas:12,elecDesc:0.5,hibridoDesc:0.5,anioExento:2008,nota:"1,5% general. Lujo (>$48M fiscal): 2,1%. Modelos ≤2008: exentos. Eléctrico/Híbrido (fab. en Córdoba): 50% desc. Desc. 30% buenos contribuyentes."},
+  santa_fe:{nombre:"Santa Fe",escalas:[{ali:0.023}],pickupDif:false,frec:"bimestral",cuotas:6,elecExento:true,hibridoExento:true,nota:"2,3%. Eléctrico/Híbrido: exentos hasta 2030 (cond. integración nacional). Desc. 35% anual; 15% débito automático."},
+  mendoza:{nombre:"Mendoza",escalas:[{hasta:5700000,ali:0.015},{hasta:11400000,ali:0.016},{hasta:19000000,ali:0.017},{hasta:28500000,ali:0.018},{hasta:38000000,ali:0.020},{hasta:47500000,ali:0.0225},{hasta:70300000,ali:0.025},{ali:0.030}],pickupDif:false,frec:"bimestral",cuotas:6,elecDesc:0.5,hibridoDesc:0.5,anioExento:1999,nota:"Escala progresiva (Ley 9597/2024). Vehículos ≤1999: exentos. Eléctrico/Híbrido: 50% desc."},
+  tucuman:{nombre:"Tucumán",escalas:[{ali:0.02}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2% única."},
+  salta:{nombre:"Salta",escalas:[{ali:0.02}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2% única."},
+  entre_rios:{nombre:"Entre Ríos",escalas:[{ali:0.0267}],pickupDif:false,frec:"bimestral",cuotas:6,elecExentoAnios:5,hibridoExentoAnios:5,nota:"2,67%. Eléctrico/Híbrido (incl. PHEV, FCEV): exentos primeros 5 años (Ley 10.949)."},
+  corrientes:{nombre:"Corrientes",escalas:[{ali:0.025}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2,5% única."},
+  misiones:{nombre:"Misiones",escalas:[{ali:0.02}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2% única."},
+  chaco:{nombre:"Chaco",escalas:[{ali:0.006}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"0,6% — la más baja del país."},
+  formosa:{nombre:"Formosa",escalas:[{ali:0.02}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2% única."},
+  santiago:{nombre:"Santiago del Estero",escalas:[{ali:0.018}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"1,8% única."},
+  la_rioja:{nombre:"La Rioja",escalas:[{ali:0.025}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2,5% única."},
+  catamarca:{nombre:"Catamarca",escalas:[{ali:0.02}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2% única."},
+  jujuy:{nombre:"Jujuy",escalas:[{ali:0.02}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2% única."},
+  san_juan:{nombre:"San Juan",escalas:[{ali:0.02}],pickupDif:false,frec:"bimestral",cuotas:6,elecExento:true,hibridoExento:true,nota:"2% única. Eléctrico/Híbrido: exentos."},
+  san_luis:{nombre:"San Luis",escalas:[{ali:0.035}],pickupDif:false,frec:"bimestral",cuotas:6,elecExento:true,nota:"3,5% única. Eléctrico: exento."},
+  la_pampa:{nombre:"La Pampa",escalas:[{hasta:624793,ali:0.02},{hasta:1338568,ali:0.023},{hasta:2230943,ali:0.025},{hasta:3122774,ali:0.026},{hasta:4015156,ali:0.027},{hasta:4907528,ali:0.028},{hasta:5799926,ali:0.029},{ali:0.030}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"Escala progresiva por tramos (Ley Impositiva 2025)."},
+  rio_negro:{nombre:"Río Negro",escalas:[{ali:0.035}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"3,5%. Posibles beneficios eléctrico/híbrido (verificar con organismo provincial)."},
+  neuquen:{nombre:"Neuquén",escalas:[{ali:0.025}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2,5%. Beneficio parcial eléctrico/híbrido (varía por municipio)."},
+  chubut:{nombre:"Chubut",escalas:[{ali:0.027}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2,7%. Posibles beneficios eléctrico/híbrido (verificar)."},
+  santa_cruz:{nombre:"Santa Cruz",escalas:[{ali:0.025}],pickupDif:false,frec:"bimestral",cuotas:6,nota:"2,5% única."},
+  tierra_del_fuego:{nombre:"Tierra del Fuego",escalas:[{ali:0.035}],pickupDif:false,frec:"bimestral",cuotas:6,elecExento:true,municipal:true,nota:"⚠️ Impuesto MUNICIPAL (Ushuaia / Río Grande). Alícuota estimada ~3-4%. Eléctrico: exento (Ord. 3.812). Verificar con municipio."},
+};
+
+function calcPat(provId,valor,tipoV,motor,anio){
+  const p=PATENTE_PROV[provId];if(!p)return null;
+  const v=Number(valor),an=Number(anio),edad=2026-an;
+  if(p.anioExento&&an<=p.anioExento)return{exento:true,razon:`Modelos ${p.anioExento} y anteriores están exentos en ${p.nombre}`,prov:p};
+  if(motor==="electrico"){
+    if(p.elecExento)return{exento:true,razon:`Vehículos 100% eléctricos están exentos en ${p.nombre}`,prov:p};
+    if(p.elecExentoAnios&&edad<p.elecExentoAnios)return{exento:true,razon:`Eléctrico con menos de ${p.elecExentoAnios} años desde inscripción: exento en ${p.nombre} (Ley 10.949)`,prov:p};
+  }
+  if(motor==="hibrido"){
+    if(p.hibridoExento)return{exento:true,razon:`Vehículos híbridos están exentos en ${p.nombre}`,prov:p};
+    if(p.hibridoExentoAnios&&edad<p.hibridoExentoAnios)return{exento:true,razon:`Híbrido con menos de ${p.hibridoExentoAnios} años desde inscripción: exento en ${p.nombre} (Ley 10.949)`,prov:p};
+    if(p.hibridoEsc&&provId==="caba"&&edad<=2)return{exento:true,razon:"Híbrido: exento los primeros 2 años en CABA",prov:p};
+  }
+  let base;
+  if(tipoV==="pickup"&&p.pickupDif&&p.pickupAli!==undefined){
+    base=v*p.pickupAli;
+  }else if(p.luxoUmbral&&v>p.luxoUmbral){
+    base=v*p.luxoAli;
+  }else if(p.marginal){
+    let t=p.escalas[p.escalas.length-1];
+    for(const s of p.escalas){if(!s.hasta||v<=s.hasta){t=s;break;}}
+    base=t.fijo+(v-(t.desde||0))*t.ali;
+  }else if(p.escalas.length===1){
+    base=v*p.escalas[0].ali;
+  }else{
+    let ali=p.escalas[p.escalas.length-1].ali;
+    for(const t of p.escalas){if(!t.hasta||v<=t.hasta){ali=t.ali;break;}}
+    base=v*ali;
+  }
+  let desc=0,notaEH="";
+  if(motor==="electrico"&&p.elecDesc){desc=p.elecDesc;notaEH=`Descuento ${p.elecDesc*100}% por vehículo eléctrico`;}
+  if(motor==="hibrido"){
+    if(p.hibridoDesc){desc=p.hibridoDesc;notaEH=`Descuento ${p.hibridoDesc*100}% por vehículo híbrido`;}
+    if(p.hibridoEsc&&provId==="caba"){
+      if(edad===3){desc=0.6;notaEH="Híbrido año 3 en CABA: paga el 40% del impuesto base";}
+      else if(edad===4){desc=0.4;notaEH="Híbrido año 4 en CABA: paga el 60% del impuesto base";}
+      else if(edad===5){desc=0.2;notaEH="Híbrido año 5 en CABA: paga el 80% del impuesto base";}
+    }
+  }
+  const anual=base*(1-desc);
+  const cuota=anual/p.cuotas;
+  const aliEf=v>0?(anual/v*100):0;
+  return{exento:false,anual,cuota,aliEf,notaEH,prov:p,tipoUsado:tipoV==="pickup"&&p.pickupDif?"pickup-dif":"general"};
+}
 
 function CalcPatentePage(){
-  const anioActual=new Date().getFullYear();
-  const [valuacion,setValuacion]=useState("");
-  const [provincia,setProvincia]=useState("");
-  const [anioVeh,setAnioVeh]=useState(String(anioActual));
-
-  const prov=PROVINCIAS_PATENTE.find(p=>p.name===provincia);
-  const usaEscala=!!(prov?.escalas);
-  const base=+(valuacion)||0;
-  const edad=(!usaEscala&&prov)?anioActual-(+anioVeh||anioActual):null;
-  const tramo=(!usaEscala&&prov&&edad!==null)?prov.tramos.find(t=>edad<=t.maxAge):null;
-  const rate=tramo?tramo.rate:null;
-  const escalaActiva=usaEscala&&base>0?prov.escalas.find(e=>base<=e.max):null;
-  let anual=null;
-  if(base&&prov){
-    if(usaEscala&&escalaActiva) anual=escalaActiva.fixed+(base-escalaActiva.base)*escalaActiva.rate/100;
-    else if(!usaEscala&&rate) anual=base*rate/100;
-  }
-  const cuota=anual&&prov?anual/prov.cuotas:null;
-  const anualDescuento=anual&&prov?.descuentoAnual?anual*(1-prov.descuentoAnual/100):null;
-  const aniosOpt=Array.from({length:40},(_,i)=>String(anioActual-i));
-
+  const [prov,setProv]=useState("");
+  const [tipoV,setTipoV]=useState("auto");
+  const [motor,setMotor]=useState("combustion");
+  const [valFiscal,setValFiscal]=useState("");
+  const [anio,setAnio]=useState(String(new Date().getFullYear()));
+  const [res,setRes]=useState(null);
+  const calcular=()=>{if(!prov||!valFiscal)return;setRes(calcPat(prov,valFiscal,tipoV,motor,anio));};
+  const provOpts=[{value:"",label:"— Seleccionar provincia —"},...Object.entries(PATENTE_PROV).map(([k,v])=>({value:k,label:v.nombre}))];
+  const hasDif=prov&&PATENTE_PROV[prov]?.pickupDif;
   return(<div>
     <h1 style={{fontSize:24,fontWeight:800,color:"#111827",margin:"0 0 6px",letterSpacing:-.5}}>Calculadora de Patentes</h1>
-    <p style={{fontSize:13,color:"#6b7280",margin:"0 0 22px"}}>Ingresá la valuación fiscal del vehículo (consultala en DNRPA / ARBA / organismo provincial) y seleccioná la provincia para estimar el impuesto.</p>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,maxWidth:780}}>
+    <p style={{fontSize:13,color:"#6b7280",margin:"0 0 20px"}}>Ingresá el valor fiscal DNRPA y seleccioná provincia, tipo de vehículo y motorización para estimar el impuesto automotor.</p>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
       <Card>
         <Sec>Datos del vehículo</Sec>
-        <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
-          <Sel label="Provincia" value={provincia} onChange={e=>setProvincia(e.target.value)} options={[{value:"",label:"Seleccioná una provincia..."},...PROVINCIAS_PATENTE.map(p=>({value:p.name,label:p.name}))]}/>
-          {!usaEscala&&<Sel label="Año del vehículo" value={anioVeh} onChange={e=>setAnioVeh(e.target.value)} options={aniosOpt}/>}
-          <div style={{display:"flex",flexDirection:"column",gap:3}}>
-            <label style={{fontSize:11,fontWeight:600,color:"#4b5563"}}>Valuación fiscal ($)</label>
-            <input
-              type="number"
-              placeholder="Ej: 25000000"
-              value={valuacion}
-              onChange={e=>setValuacion(e.target.value)}
-              style={{padding:"8px 11px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:13,background:"#fafbfc",color:"#1f2937",outline:"none"}}
-              onFocus={e=>e.target.style.borderColor="#0ea5e9"}
-              onBlur={e=>e.target.style.borderColor="#e5e7eb"}
-            />
-            <span style={{fontSize:10,color:"#9ca3af",marginTop:2}}>Consultá la valuación vigente en el organismo correspondiente de tu provincia</span>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <div style={{gridColumn:"1/-1"}}><Sel label="Provincia" value={prov} onChange={e=>{setProv(e.target.value);setRes(null);}} options={provOpts}/></div>
+          <div style={{gridColumn:"1/-1"}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#4b5563",display:"block",marginBottom:5}}>Tipo de vehículo</label>
+            <div style={{display:"flex",gap:8}}>
+              {[["auto","🚗 Auto / SUV"],["pickup","🛻 Pick-up"]].map(([val,lbl])=>(
+                <button key={val} onClick={()=>{setTipoV(val);setRes(null);}} style={{flex:1,padding:"9px 12px",border:`2px solid ${tipoV===val?"#0284c7":"#e5e7eb"}`,borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,background:tipoV===val?"#f0f9ff":"#fafbfc",color:tipoV===val?"#0284c7":"#6b7280",transition:"all .15s",fontFamily:"inherit"}}>{lbl}</button>
+              ))}
+            </div>
+            {tipoV==="pickup"&&hasDif&&<div style={{marginTop:6,padding:"6px 9px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:6,fontSize:10,color:"#92400e",lineHeight:1.5}}>{PATENTE_PROV[prov]?.pickupNota||"Esta provincia tiene alícuota diferencial para pick-ups."}</div>}
           </div>
+          <div style={{gridColumn:"1/-1"}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#4b5563",display:"block",marginBottom:5}}>Motorización</label>
+            <div style={{display:"flex",gap:6}}>
+              {[["combustion","⛽ Combustión"],["hibrido","⚡ Híbrido"],["electrico","🔋 Eléctrico"]].map(([val,lbl])=>(
+                <button key={val} onClick={()=>{setMotor(val);setRes(null);}} style={{flex:1,padding:"8px 6px",border:`2px solid ${motor===val?"#0284c7":"#e5e7eb"}`,borderRadius:8,cursor:"pointer",fontSize:11,fontWeight:600,background:motor===val?"#f0f9ff":"#fafbfc",color:motor===val?"#0284c7":"#6b7280",transition:"all .15s",fontFamily:"inherit"}}>{lbl}</button>
+              ))}
+            </div>
+          </div>
+          <Inp label="Valor fiscal DNRPA ($)" type="number" placeholder="Ej: 24320000" value={valFiscal} onChange={e=>{setValFiscal(e.target.value);setRes(null);}}/>
+          <Inp label="Año del vehículo" type="number" placeholder={String(new Date().getFullYear())} value={anio} onChange={e=>{setAnio(e.target.value);setRes(null);}} min="1980" max={String(new Date().getFullYear()+1)}/>
         </div>
+        <Btn onClick={calcular} variant="primary" size="lg" style={{width:"100%",justifyContent:"center",opacity:(!prov||!valFiscal)?0.5:1}}>Calcular patente</Btn>
+        {prov&&PATENTE_PROV[prov]&&<div style={{marginTop:10,padding:"8px 10px",background:"#f8fafc",border:"1px solid #e5e7eb",borderRadius:7,fontSize:10,color:"#6b7280",lineHeight:1.5}}><strong style={{color:"#374151"}}>Info {PATENTE_PROV[prov].nombre}:</strong> {PATENTE_PROV[prov].nota}</div>}
       </Card>
-
-      <Card>
-        <Sec>Resultado estimado</Sec>
-        {(!provincia||!base)?
-          <div style={{textAlign:"center",padding:"32px 0",color:"#9ca3af",fontSize:13}}>Completá los datos para calcular</div>
-        :!anual?
-          <div style={{textAlign:"center",padding:"32px 0",color:"#ef4444",fontSize:13}}>Datos insuficientes o provincia no disponible</div>
-        :<div style={{marginTop:8}}>
-          <div style={{padding:"10px 14px",background:"#f0f9ff",borderRadius:8,marginBottom:10,fontSize:12,color:"#0369a1"}}>
-            <strong>{prov.name}</strong>{prov.nota&&<span style={{color:"#6b7280"}}> · {prov.nota}</span>}<br/>
-            {usaEscala
-              ?<>Tramo aplicado: <strong style={{color:"#0284c7"}}>{escalaActiva.rate}%</strong> sobre excedente{escalaActiva.fixed>0?<> + fijo <strong>{fmt$(escalaActiva.fixed)}</strong></>:""}</>
-              :<>Antigüedad: <strong>{edad===0?"0km / nuevo":edad===1?"1 año":`${edad} años`}</strong> · Alícuota: <strong style={{color:"#0284c7"}}>{rate}%</strong></>
-            }
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:"#f9fafb",borderRadius:8}}>
-              <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Impuesto anual</span>
-              <span style={{fontSize:18,fontWeight:800,color:"#111827",letterSpacing:-.5}}>{fmt$(anual)}</span>
+      {res?(
+        <Card style={{background:res.exento?"#f0fdf4":"#fff"}}>
+          <Sec>{res.exento?"Estado fiscal":"Resultado"}</Sec>
+          {res.exento?(
+            <div style={{textAlign:"center",padding:"28px 10px"}}>
+              <div style={{fontSize:36,marginBottom:10}}>✅</div>
+              <div style={{fontSize:15,fontWeight:700,color:"#16a34a",marginBottom:8}}>Exento de patente</div>
+              <div style={{fontSize:12,color:"#4b5563",lineHeight:1.6,marginBottom:12}}>{res.razon}</div>
+              {res.prov?.nota&&<div style={{padding:"8px 10px",background:"#dcfce7",border:"1px solid #86efac",borderRadius:7,fontSize:10,color:"#166534",lineHeight:1.5,textAlign:"left"}}>{res.prov.nota}</div>}
             </div>
-            {anualDescuento&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#f0fdf4",borderRadius:8,border:"1px solid #bbf7d0"}}>
-              <span style={{fontSize:12,color:"#16a34a",fontWeight:600}}>Pago anual ({prov.descuentoAnual}% desc.)</span>
-              <span style={{fontSize:15,fontWeight:700,color:"#16a34a"}}>{fmt$(anualDescuento)}</span>
-            </div>}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#f9fafb",borderRadius:8}}>
-              <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Por cuota ({prov.cuotas} cuotas)</span>
-              <span style={{fontSize:16,fontWeight:700,color:"#0284c7"}}>{fmt$(cuota)}</span>
+          ):(
+            <div>
+              {res.notaEH&&<div style={{marginBottom:10,padding:"7px 10px",background:"#f0f9ff",border:"1px solid #bae6fd",borderRadius:7,fontSize:10,color:"#075985",lineHeight:1.4}}>{res.notaEH}</div>}
+              {res.tipoUsado==="pickup-dif"&&<div style={{marginBottom:10,padding:"7px 10px",background:"#fefce8",border:"1px solid #fde047",borderRadius:7,fontSize:10,color:"#713f12",lineHeight:1.4}}>Se aplicó alícuota diferencial para pick-up</div>}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                <div style={{background:"#f0f9ff",borderRadius:10,padding:"14px 12px",textAlign:"center"}}>
+                  <div style={{fontSize:9,color:"#6b7280",fontWeight:600,textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>Alícuota efectiva</div>
+                  <div style={{fontSize:22,fontWeight:800,color:"#0284c7"}}>{res.aliEf.toFixed(2)}%</div>
+                </div>
+                <div style={{background:"#f0fdf4",borderRadius:10,padding:"14px 12px",textAlign:"center"}}>
+                  <div style={{fontSize:9,color:"#6b7280",fontWeight:600,textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>Impuesto anual</div>
+                  <div style={{fontSize:18,fontWeight:800,color:"#16a34a"}}>{fmt$(Math.round(res.anual))}</div>
+                </div>
+              </div>
+              <div style={{background:"linear-gradient(135deg,#0284c7,#0ea5e9)",borderRadius:12,padding:"18px 16px",textAlign:"center",marginBottom:10}}>
+                <div style={{fontSize:10,color:"rgba(255,255,255,.75)",fontWeight:600,textTransform:"uppercase",letterSpacing:.5,marginBottom:4}}>Cuota {res.prov.frec}</div>
+                <div style={{fontSize:28,fontWeight:800,color:"#fff"}}>{fmt$(Math.round(res.cuota))}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,.65)",marginTop:3}}>{res.prov.cuotas} cuotas {res.prov.frec}es</div>
+              </div>
+              <div style={{fontSize:9,color:"#9ca3af",lineHeight:1.5}}>Base: valor fiscal DNRPA. Cifras orientativas — verificar con organismo recaudador provincial.</div>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:"#f9fafb",borderRadius:8}}>
-              <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Valuación ingresada</span>
-              <span style={{fontSize:13,fontWeight:600,color:"#374151"}}>{fmt$(base)}</span>
-            </div>
+          )}
+        </Card>
+      ):(
+        <Card style={{display:"flex",alignItems:"center",justifyContent:"center",background:"#f8fafc",border:"2px dashed #e5e7eb",minHeight:280}}>
+          <div style={{textAlign:"center",color:"#9ca3af"}}>
+            <div style={{fontSize:36,marginBottom:8}}>🧮</div>
+            <div style={{fontSize:13,fontWeight:600}}>Completá los datos</div>
+            <div style={{fontSize:11,marginTop:4}}>y calculá el impuesto automotor</div>
           </div>
-          <div style={{marginTop:12,padding:"8px 12px",background:"#fefce8",border:"1px solid #fde68a",borderRadius:8,fontSize:11,color:"#92400e",lineHeight:1.5}}>
-            ⚠ Cálculo estimativo. Las alícuotas pueden variar según resolución vigente de cada provincia. Verificar siempre con el organismo recaudador.
-          </div>
-        </div>}
-      </Card>
+        </Card>
+      )}
     </div>
-
-    <Card style={{marginTop:20,maxWidth:780}}>
-      <Sec>Escalas ARBA 2026 — Buenos Aires (Prov.)</Sec>
-      <div style={{overflowX:"auto",marginTop:8}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-          <thead><tr style={{background:"#f8fafc"}}>
-            <th style={{padding:"8px 12px",textAlign:"left",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Valuación fiscal</th>
-            <th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Monto fijo</th>
-            <th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Alícuota sobre excedente</th>
-          </tr></thead>
-          <tbody>{PROVINCIAS_PATENTE[0].escalas.map((e,i)=>(
-            <tr key={i} style={{background:i%2===0?"#fff":"#f9fafb",borderBottom:"1px solid #f3f4f6"}}>
-              <td style={{padding:"7px 12px",color:"#374151"}}>{fmt$(e.base)} {e.max!==Infinity?`→ ${fmt$(e.max)}`:"en adelante"}</td>
-              <td style={{padding:"7px 12px",textAlign:"center",color:"#6b7280"}}>{e.fixed>0?fmt$(e.fixed):"—"}</td>
-              <td style={{padding:"7px 12px",textAlign:"center",fontWeight:700,color:"#0284c7"}}>{e.rate}%</td>
-            </tr>
-          ))}</tbody>
-        </table>
-        <p style={{fontSize:11,color:"#6b7280",margin:"8px 0 0"}}>10 cuotas mensuales · 15% de descuento pagando el año completo en marzo</p>
-      </div>
-    </Card>
-
-    <Card style={{marginTop:20,maxWidth:780}}>
-      <Sec>Alícuotas por provincia (referencia)</Sec>
-      <div style={{overflowX:"auto",marginTop:8}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-          <thead><tr style={{background:"#f8fafc"}}><th style={{padding:"8px 12px",textAlign:"left",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Provincia</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>0-5 años</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>6-10 años</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>+10 años</th><th style={{padding:"8px 12px",textAlign:"center",fontWeight:700,color:"#374151",borderBottom:"2px solid #e5e7eb"}}>Cuotas</th></tr></thead>
-          <tbody>{PROVINCIAS_PATENTE.map((p,i)=>{
-            if(p.escalas)return(<tr key={p.name} style={{background:i%2===0?"#fff":"#f9fafb",borderBottom:"1px solid #f3f4f6"}}>
-              <td style={{padding:"7px 12px",fontWeight:600,color:"#111827"}}>{p.name}</td>
-              <td colSpan={3} style={{padding:"7px 12px",textAlign:"center",color:"#0284c7",fontWeight:600}}>Escala progresiva 1% – 4,5%</td>
-              <td style={{padding:"7px 12px",textAlign:"center",color:"#6b7280"}}>{p.cuotas}</td>
-            </tr>);
-            const r0=p.tramos.find(t=>3<=t.maxAge||t.maxAge===Infinity)?.rate;
-            const r6=p.tramos.find(t=>t.maxAge>=8&&t.maxAge<Infinity)?.rate||(p.tramos[p.tramos.length-1]?.rate);
-            const r10=p.tramos[p.tramos.length-1]?.rate;
-            const fmtR=r=>`${r}%`;
-            return(<tr key={p.name} style={{background:i%2===0?"#fff":"#f9fafb",borderBottom:"1px solid #f3f4f6"}}>
-              <td style={{padding:"7px 12px",fontWeight:600,color:"#111827"}}>{p.name}</td>
-              <td style={{padding:"7px 12px",textAlign:"center",color:"#dc2626",fontWeight:600}}>{fmtR(r0)}</td>
-              <td style={{padding:"7px 12px",textAlign:"center",color:"#d97706",fontWeight:600}}>{fmtR(r6)}</td>
-              <td style={{padding:"7px 12px",textAlign:"center",color:"#16a34a",fontWeight:600}}>{fmtR(r10)}</td>
-              <td style={{padding:"7px 12px",textAlign:"center",color:"#6b7280"}}>{p.cuotas}</td>
-            </tr>);
-          })}</tbody>
-        </table>
+    <Card>
+      <h3 style={{fontSize:13,fontWeight:700,color:"#111827",margin:"0 0 10px"}}>Referencia por provincia — Alícuotas 2025/2026</h3>
+      <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+        <thead><tr style={{borderBottom:"2px solid #e5e7eb"}}>{["Provincia","Alícuota auto","Pick-up","Eléctrico","Híbrido","Frecuencia"].map(h=><th key={h} style={{padding:"6px 8px",textAlign:"left",fontWeight:600,color:"#6b7280",fontSize:9,textTransform:"uppercase",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+        <tbody>{Object.entries(PATENTE_PROV).map(([k,p],i)=>{
+          const ali=p.escalas.length===1?`${(p.escalas[0].ali*100).toFixed(1)}%`:`${(p.escalas[0].ali*100).toFixed(1)}%–${(p.escalas[p.escalas.length-1].ali*100).toFixed(1)}%`;
+          const elec=p.elecExento?"Exento":p.elecExentoAnios?`${p.elecExentoAnios}a exento`:p.elecDesc?`−${p.elecDesc*100}%`:"—";
+          const hib=p.hibridoExento?"Exento":p.hibridoExentoAnios?`${p.hibridoExentoAnios}a exento`:p.hibridoDesc?`−${p.hibridoDesc*100}%`:p.hibridoEsc?"Escal.":"—";
+          const pu=p.pickupDif?`${(p.pickupAli*100).toFixed(1)}%`:"Igual";
+          return<tr key={k} style={{borderBottom:"1px solid #f3f4f6",background:i%2===0?"#fff":"#fafafa",cursor:"pointer"}} onClick={()=>{setProv(k);setRes(null);window.scrollTo(0,0);}}>
+            <td style={{padding:"5px 8px",fontWeight:600,color:"#111827"}}>{p.nombre}{p.municipal&&<span style={{marginLeft:4,fontSize:8,background:"#fef3c7",color:"#92400e",padding:"1px 4px",borderRadius:3,fontWeight:700}}>MUN</span>}</td>
+            <td style={{padding:"5px 8px",color:"#374151",fontWeight:500}}>{ali}</td>
+            <td style={{padding:"5px 8px"}}><span style={{color:p.pickupDif?"#16a34a":"#9ca3af",fontWeight:p.pickupDif?700:400}}>{pu}</span></td>
+            <td style={{padding:"5px 8px"}}><span style={{fontSize:10,padding:"1px 5px",borderRadius:4,background:p.elecExento||p.elecExentoAnios?"#dcfce7":p.elecDesc?"#dbeafe":"#f3f4f6",color:p.elecExento||p.elecExentoAnios?"#166534":p.elecDesc?"#1d4ed8":"#9ca3af",fontWeight:p.elecExento||p.elecExentoAnios||p.elecDesc?600:400}}>{elec}</span></td>
+            <td style={{padding:"5px 8px"}}><span style={{fontSize:10,padding:"1px 5px",borderRadius:4,background:p.hibridoExento||p.hibridoExentoAnios||p.hibridoEsc?"#dcfce7":p.hibridoDesc?"#dbeafe":"#f3f4f6",color:p.hibridoExento||p.hibridoExentoAnios||p.hibridoEsc?"#166534":p.hibridoDesc?"#1d4ed8":"#9ca3af",fontWeight:p.hibridoExento||p.hibridoExentoAnios||p.hibridoDesc||p.hibridoEsc?600:400}}>{hib}</span></td>
+            <td style={{padding:"5px 8px",color:"#6b7280",fontSize:10}}>{p.cuotas}× {p.frec}</td>
+          </tr>;
+        })}</tbody>
+      </table></div>
+      <div style={{marginTop:10,padding:"7px 10px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:6,fontSize:10,color:"#78350f",lineHeight:1.5}}>
+        ⚠️ <strong>Importante:</strong> Los valores en $ ARS cambian anualmente. Las alícuotas (%) son el dato más estable. El valor fiscal DNRPA difiere del valor de mercado. Hacé clic en cualquier fila para seleccionar esa provincia en la calculadora.
       </div>
     </Card>
   </div>);
