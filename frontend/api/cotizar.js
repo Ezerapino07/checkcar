@@ -1,28 +1,5 @@
 // Serverless function — Vercel
-// Requiere variables de entorno: ML_CLIENT_ID, ML_CLIENT_SECRET
-
-let cachedToken = null;
-let tokenExpiry = 0;
-
-async function getAccessToken() {
-  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
-
-  const res = await fetch("https://api.mercadolibre.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: process.env.ML_CLIENT_ID,
-      client_secret: process.env.ML_CLIENT_SECRET,
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Token error ${res.status}`);
-  const data = await res.json();
-  cachedToken = data.access_token;
-  tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
-  return cachedToken;
-}
+// Búsqueda pública de ML (no requiere auth para endpoints de consulta)
 
 function median(arr) {
   if (!arr.length) return 0;
@@ -41,19 +18,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const token = await getAccessToken();
     const q = encodeURIComponent(`${marca} ${modelo} ${anio}`);
-    // Sin filtro de categoría (MLA1744 requiere permisos adicionales)
-    // condition=used para enfocarse en usados
     const url = `https://api.mercadolibre.com/sites/MLA/search?q=${q}&condition=used&limit=30`;
 
     const mlRes = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        "Accept": "application/json",
+        "Accept-Language": "es-AR,es;q=0.9",
+        "User-Agent": "Mozilla/5.0 (compatible; CheckCar/1.0)",
+      },
     });
 
     if (!mlRes.ok) {
-      cachedToken = null; // forzar refresh si el token expiró
-      return res.status(mlRes.status).json({ error: `ML error ${mlRes.status}` });
+      return res.status(mlRes.status).json({ error: `ML error ${mlRes.status}`, detail: await mlRes.text() });
     }
 
     const data = await mlRes.json();
