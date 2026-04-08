@@ -731,9 +731,6 @@ function CotizadorPage(){
   const [precioMercado,setPrecioMercado]=useState("");
   const [resultado,setResultado]=useState(null);
   const [errPat,setErrPat]=useState("");
-  const [mlLoading,setMlLoading]=useState(false);
-  const [mlRef,setMlRef]=useState(null);
-  const [mlError,setMlError]=useState("");
 
   const aniosOpt=Array.from({length:anioActual-1980+1},(_,i)=>String(anioActual-i));
 
@@ -745,18 +742,9 @@ function CotizadorPage(){
 
   const siguientePaso=()=>{if(marca&&modelo&&anio)setPaso(2);};
 
-  const buscarEnML=async()=>{
-    setMlLoading(true);setMlError("");setMlRef(null);
-    try{
-      const params=new URLSearchParams({marca,modelo,anio});
-      const res=await fetch(`/api/cotizar?${params}`);
-      const data=await res.json();
-      if(!res.ok||data.error)throw new Error(data.error||"Error al consultar ML");
-      if(!data.found){setMlError("No se encontraron publicaciones para este vehículo en ML.");return;}
-      setMlRef(data);
-      setPrecioMercado(String(data.mediana));
-    }catch(e){setMlError(e.message);}
-    finally{setMlLoading(false);}
+  const abrirML=()=>{
+    const q=`${marca} ${modelo} ${anio} usado`.trim().replace(/\s+/g,"-").toLowerCase();
+    window.open(`https://listado.mercadolibre.com.ar/autos-camionetas/${q}`,"_blank","noopener");
   };
 
   const calcular=()=>{
@@ -766,7 +754,7 @@ function CotizadorPage(){
     setPaso(3);
   };
 
-  const reiniciar=()=>{setPaso(1);setResultado(null);setPrecioMercado("");setPatenteOk(false);setErrPat("");setMlRef(null);setMlError("");};
+  const reiniciar=()=>{setPaso(1);setResultado(null);setPrecioMercado("");setPatenteOk(false);setErrPat("");};
 
   const StepCircle=({n,done})=>(
     <div style={{width:28,height:28,borderRadius:"50%",background:done?"#16a34a":n===paso?"#dc2626":"#e5e7eb",color:"#fff",fontSize:13,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .2s"}}>
@@ -823,34 +811,15 @@ function CotizadorPage(){
 
         {paso===2&&<div style={{display:"flex",flexDirection:"column",gap:12,paddingLeft:38}}>
 
-          {/* Botón consultar ML */}
-          <button onClick={buscarEnML} disabled={mlLoading} style={{padding:"10px 0",background:mlLoading?"#e5e7eb":"#f97316",color:mlLoading?"#9ca3af":"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:mlLoading?"not-allowed":"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-            {mlLoading?"Consultando MercadoLibre...":"🔍 Consultar precio en MercadoLibre"}
+          <button onClick={abrirML} style={{padding:"10px 0",background:"#f97316",color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            🔍 Ver precios en MercadoLibre →
           </button>
-
-          {/* Resultado de ML */}
-          {mlRef&&<div style={{padding:"10px 12px",background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:8,fontSize:12,color:"#9a3412",lineHeight:1.8}}>
-            <div style={{fontWeight:700,marginBottom:4,fontSize:13,color:"#7c2d12"}}>Referencia ML — {mlRef.count} publicaciones</div>
-            <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-              <span><strong>Mediana:</strong> {fmt$(mlRef.mediana)}</span>
-              <span><strong>Mínimo:</strong> {fmt$(mlRef.min)}</span>
-              <span><strong>Máximo:</strong> {fmt$(mlRef.max)}</span>
-            </div>
-            {mlRef.muestra?.length>0&&<div style={{marginTop:8,borderTop:"1px solid #fed7aa",paddingTop:8,display:"flex",flexDirection:"column",gap:4}}>
-              {mlRef.muestra.map((p,i)=>(
-                <a key={i} href={p.link} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#c2410c",display:"flex",justifyContent:"space-between",textDecoration:"none",gap:8}}>
-                  <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{p.titulo}</span>
-                  <strong style={{flexShrink:0}}>{fmt$(p.precio)}</strong>
-                </a>
-              ))}
-            </div>}
-            <div style={{marginTop:6,fontSize:10,color:"#b45309"}}>Precio pre-cargado con la mediana. Podés ajustarlo manualmente.</div>
-          </div>}
-
-          {mlError&&<div style={{padding:"8px 12px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,fontSize:12,color:"#dc2626"}}>{mlError}</div>}
+          <div style={{padding:"9px 12px",background:"#f0f9ff",borderRadius:8,fontSize:12,color:"#0369a1",lineHeight:1.6}}>
+            Abre la búsqueda de <strong>{marca} {modelo} {anio}</strong> en ML. Fijate los precios y escribí el que tomás de referencia.
+          </div>
 
           <div style={{display:"flex",flexDirection:"column",gap:3}}>
-            <label style={{fontSize:11,fontWeight:600,color:"#4b5563"}}>Precio de mercado ($) — editable</label>
+            <label style={{fontSize:11,fontWeight:600,color:"#4b5563"}}>Precio de mercado ($)</label>
             <input
               type="number"
               placeholder="Ej: 18000000"
