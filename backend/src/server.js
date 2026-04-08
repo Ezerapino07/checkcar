@@ -19,7 +19,17 @@ const PORT = process.env.PORT || 3001;
 // MIDDLEWARE GLOBAL
 // ============================================================
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    const allowed = (process.env.FRONTEND_URL || 'http://localhost:5173')
+      .split(',').map(s => s.trim());
+    if (allowed.some(o => origin === o || origin.endsWith('.onrender.com'))) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '50mb' })); // Limit alto para fotos base64

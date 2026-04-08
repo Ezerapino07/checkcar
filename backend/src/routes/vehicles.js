@@ -130,9 +130,9 @@ router.post('/', async (req, res) => {
         condicion, kilometros, fecha_ingreso, fecha_venta, patente, chasis,
         nro_motor, precio_compra, precio_venta, precio_minimo, descripcion,
         anotaciones, estado, procedencia, ubicacion, estado_cubiertas,
-        estado_pintura, estado_motor, estado_interior, vendido
+        estado_pintura, estado_motor, estado_interior, vendido, vendedor, cliente_venta_id
       ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30
       ) RETURNING *`,
       [
         tenantId, v.titulo, v.marca, v.modelo, v.anio || null, v.motor, v.version,
@@ -141,7 +141,7 @@ router.post('/', async (req, res) => {
         v.precio_compra || null, v.precio_venta || null, v.precio_minimo || null,
         v.descripcion, v.anotaciones, v.estado || 'Disponible', v.procedencia,
         v.ubicacion, v.estado_cubiertas, v.estado_pintura, v.estado_motor,
-        v.estado_interior, v.vendido || false,
+        v.estado_interior, v.vendido || false, v.vendedor || null, v.cliente_venta_id || null,
       ]
     );
     const vehicle = result.rows[0];
@@ -223,8 +223,9 @@ router.put('/:id', async (req, res) => {
         precio_compra=$15, precio_venta=$16, precio_minimo=$17,
         descripcion=$18, anotaciones=$19, estado=$20, procedencia=$21,
         ubicacion=$22, estado_cubiertas=$23, estado_pintura=$24,
-        estado_motor=$25, estado_interior=$26, vendido=$27, updated_at=NOW()
-       WHERE id=$28 AND tenant_id=$29`,
+        estado_motor=$25, estado_interior=$26, vendido=$27,
+        vendedor=$28, cliente_venta_id=$29, updated_at=NOW()
+       WHERE id=$30 AND tenant_id=$31`,
       [
         v.titulo, v.marca, v.modelo, v.anio || null, v.motor, v.version,
         v.transmision, v.condicion, v.kilometros || null, v.fecha_ingreso || null,
@@ -232,7 +233,8 @@ router.put('/:id', async (req, res) => {
         v.precio_compra || null, v.precio_venta || null, v.precio_minimo || null,
         v.descripcion, v.anotaciones, v.estado, v.procedencia, v.ubicacion,
         v.estado_cubiertas, v.estado_pintura, v.estado_motor, v.estado_interior,
-        v.vendido || false, vehicleId, tenantId,
+        v.vendido || false, v.vendedor || null, v.cliente_venta_id || null,
+        vehicleId, tenantId,
       ]
     );
 

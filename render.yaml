@@ -1,0 +1,48 @@
+databases:
+  - name: checkcar-db
+    plan: free
+    databaseName: autogestion
+    user: autogestion_user
+
+services:
+  # ── Backend API ──────────────────────────────────────────────
+  - type: web
+    name: checkcar-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/server.js
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: checkcar-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        value: https://checkcar-app.onrender.com   # actualizar con tu URL real del frontend
+
+  # ── Frontend ─────────────────────────────────────────────────
+  - type: web
+    name: checkcar-app
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    plan: free
+    envVars:
+      - key: VITE_API_URL
+        value: https://checkcar-api.onrender.com/api   # actualizar con tu URL real del backend
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -88,10 +88,16 @@ const initDB = async () => {
         estado_motor     VARCHAR(50) DEFAULT 'Bueno',
         estado_interior  VARCHAR(50) DEFAULT 'Bueno',
         vendido         BOOLEAN DEFAULT false,
+        vendedor        VARCHAR(255),
+        cliente_venta_id INT,
         created_at      TIMESTAMP DEFAULT NOW(),
         updated_at      TIMESTAMP DEFAULT NOW()
       );
     `);
+
+    // Migraciones para columnas nuevas en instalaciones existentes
+    await client.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS vendedor VARCHAR(255)`);
+    await client.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS cliente_venta_id INT`);
 
     // 5. Fotos de vehículos
     await client.query(`
