@@ -388,7 +388,7 @@ function SoldPage({data,setData,user}){
       </Card>
     );})}</div>:<Card style={{textAlign:"center",padding:36,color:"#9ca3af"}}><p style={{margin:0}}>No hay vehículos vendidos{mes?" en este mes":""}{vendedorF?" por este vendedor":""}.</p></Card>}
     {vv&&!sf2&&<VDetail vehicle={vv} onClose={()=>setVv(null)} onEdit={v=>{setVv(null);setEv2(v);setSf2(true);}}/>}
-    {sf2&&<VForm vehicle={ev2} allMarcas={[...new Set([...DEF_MARCAS,...(data.customMarcas||[])])].sort()} onSave={f=>{const now=new Date().toLocaleString("es-AR");const nd={...data,vehicles:data.vehicles.map(v=>v.id===f.id?f:v),activityLog:[{date:now,user:user.name,action:`Editó vehículo vendido: ${f.titulo||f.marca+" "+f.modelo}`},...(data.activityLog||[])]};setData(nd);setSf2(false);setEv2(null);}} onCancel={()=>{setSf2(false);setEv2(null);}} onAddMarca={()=>{}}/>}
+    {sf2&&<VForm vehicle={ev2} allMarcas={[...new Set([...DEF_MARCAS,...(data.customMarcas||[])])].sort()} clients={data.clients||[]} onSave={f=>{const now=new Date().toLocaleString("es-AR");const nd={...data,vehicles:data.vehicles.map(v=>v.id===f.id?f:v),activityLog:[{date:now,user:user.name,action:`Editó vehículo vendido: ${f.titulo||f.marca+" "+f.modelo}`},...(data.activityLog||[])]};setData(nd);setSf2(false);setEv2(null);}} onCancel={()=>{setSf2(false);setEv2(null);}} onAddMarca={()=>{}}/>}
   </div>);
 }
 
