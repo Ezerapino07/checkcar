@@ -43,8 +43,9 @@ export default async function handler(req, res) {
   try {
     const token = await getAccessToken();
     const q = encodeURIComponent(`${marca} ${modelo} ${anio}`);
-    // MLA1744 = Autos y Camionetas en Argentina
-    const url = `https://api.mercadolibre.com/sites/MLA/search?q=${q}&category=MLA1744&limit=30`;
+    // Sin filtro de categoría (MLA1744 requiere permisos adicionales)
+    // condition=used para enfocarse en usados
+    const url = `https://api.mercadolibre.com/sites/MLA/search?q=${q}&condition=used&limit=30`;
 
     const mlRes = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
