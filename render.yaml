@@ -1,6 +1,5 @@
 databases:
   - name: checkcar-db
-    plan: free
     databaseName: autogestion
     user: autogestion_user
 
@@ -12,7 +11,6 @@ services:
     rootDir: backend
     buildCommand: npm install
     startCommand: node src/server.js
-    plan: free
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -34,7 +32,6 @@ services:
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
-    plan: free
     envVars:
       - key: VITE_API_URL
         value: https://checkcar-api.onrender.com/api   # actualizar con tu URL real del backend
